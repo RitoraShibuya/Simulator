@@ -1,0 +1,142 @@
+/**
+ * BS Simulator - ZoomModal Component
+ * High-resolution modal preview for cards
+ */
+
+import React from 'react';
+import { CardInstance } from '../types';
+import { X } from 'lucide-react';
+
+interface ZoomModalProps {
+  card: CardInstance | null;
+  onClose: () => void;
+}
+
+export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
+  if (!card) return null;
+
+  const isReversed =
+    card.physicalState === 'FACE_DOWN' || card.visibility === 'HIDDEN_ALL';
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 20000,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+        animation: 'fadeIn 0.2s ease-out',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          maxWidth: '90vw',
+          maxHeight: '85vh',
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '-40px',
+            right: '-10px',
+            background: 'rgba(239, 68, 68, 0.8)',
+            border: 'none',
+            color: '#fff',
+            borderRadius: '50%',
+            width: '36px',
+            height: '36px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          }}
+        >
+          <X size={20} />
+        </button>
+
+        {isReversed ? (
+          <div
+            style={{
+              width: '320px',
+              height: '448px',
+              backgroundColor: '#0f172a',
+              borderRadius: '16px',
+              border: '3px solid #334155',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              backgroundImage: card.backDataUrl ? `url(${card.backDataUrl})` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.9)',
+            }}
+          >
+            {!card.backDataUrl && '（裏面カード）'}
+          </div>
+        ) : card.dataUrl ? (
+          <img
+            src={card.dataUrl}
+            alt={card.name}
+            style={{
+              maxHeight: '75vh',
+              maxWidth: '85vw',
+              borderRadius: '14px',
+              border: '3px solid #38bdf8',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 30px rgba(56, 189, 248, 0.4)',
+              objectFit: 'contain',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '320px',
+              height: '448px',
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              borderRadius: '16px',
+              border: '3px solid #38bdf8',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px',
+              boxSizing: 'border-box',
+              color: '#fff',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 30px rgba(56, 189, 248, 0.3)',
+            }}
+          >
+            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', textAlign: 'center', marginBottom: '16px' }}>
+              {card.name}
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+              ゾーン: {card.zone}
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#38bdf8', marginTop: '8px' }}>
+              コア: {card.attachedCores}個 {card.attachedSoulCore ? '＋ ソウルコア' : ''}
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: '12px', color: '#e2e8f0', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          {isReversed ? '非公開' : card.name}
+        </div>
+      </div>
+    </div>
+  );
+};
