@@ -464,6 +464,10 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
     isShowingMyBoard
       ? { x, y }
       : { x: BOARD_WIDTH - x - width, y: BOARD_HEIGHT - y - height };
+  const boardCssPosition = (x: number, y: number, width: number, height: number) => {
+    const position = boardPosition(x, y, width, height);
+    return { left: `${position.x}px`, top: `${position.y}px` };
+  };
   const currentResource = players[targetPlayerId] ?? {
     playerId: targetPlayerId,
     name: targetPlayerId === localPlayerId ? 'Player' : 'Opponent',
@@ -592,7 +596,7 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         <div
           style={{
             position: 'absolute',
-            ...boardPosition(1190, 30, 76, 96),
+            ...boardCssPosition(1190, 30, 76, 96),
             width: '76px',
             height: '96px',
             borderRadius: '10px',
@@ -616,7 +620,7 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         <div
           style={{
             position: 'absolute',
-            ...boardPosition(1276, 30, 118, 96),
+            ...boardCssPosition(1276, 30, 118, 96),
             width: '118px',
             height: '96px',
             backgroundColor: 'rgba(30, 41, 59, 0.6)',

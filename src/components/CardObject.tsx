@@ -24,6 +24,7 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const currentViewMode = useGameStore((s) => s.currentViewMode);
   const setSelectedCardForAction = useGameStore((s) => s.setSelectedCardForAction);
+  const bringCardToFront = useGameStore((s) => s.bringCardToFront);
   const selectedCardForAction = useGameStore((s) => s.selectedCardForAction);
   const getAttachedCoresInfo = useGameStore((s) => s.getAttachedCoresInfo);
 
@@ -84,6 +85,7 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedCardForAction(card);
+    if (canDrag) bringCardToFront(card.instanceId);
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {

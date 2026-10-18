@@ -42,9 +42,9 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, zoneMenu, onClos
     : zoneMenu === 'DECK'
       ? '山札を操作します'
       : 'ライフコアを管理します';
+  // Zone menus support repeated operations; users close them explicitly with the close button.
   const runZoneAction = (action: () => void) => {
     action();
-    onClose();
   };
 
   return (

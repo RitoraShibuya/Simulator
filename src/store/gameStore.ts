@@ -44,6 +44,24 @@ const SHARED_CARD_ZONES = new Set<ZoneType>(['FIELD', 'TEMOTO', 'TRASH', 'BURST'
 
 const sharesCardDetails = (zone: ZoneType) => SHARED_CARD_ZONES.has(zone);
 
+const placeCardOnTop = (
+  cards: Record<string, CardInstance>,
+  ownerId: PlayerId,
+  focusedId: string,
+): Record<string, CardInstance> => {
+  // Compact the layer every time. This prevents a long game from exhausting the 10–80 card layer.
+  const otherOwnedCards = Object.values(cards)
+    .filter((card) => card.ownerId === ownerId && !card.isDeckPlaceholder && card.instanceId !== focusedId)
+    .sort((a, b) => (a.position.zIndex ?? 10) - (b.position.zIndex ?? 10));
+  const zIndexes = new Map(otherOwnedCards.map((card, index) => [card.instanceId, 10 + Math.min(index, 69)]));
+
+  return Object.fromEntries(Object.entries(cards).map(([id, card]) => {
+    if (id === focusedId) return [id, { ...card, position: { ...card.position, zIndex: 80 } }];
+    const zIndex = zIndexes.get(id);
+    return [id, zIndex === undefined ? card : { ...card, position: { ...card.position, zIndex } }];
+  }));
+};
+
 const toSharedCard = (card: CardInstance) => ({
   cardId: card.cardId,
   name: card.name,
@@ -116,6 +134,7 @@ interface GameState {
   setExDrawerOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   setToolMenuOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   setSelectedCardForAction: (card: CardInstance | null) => void;
+  bringCardToFront: (instanceId: string) => void;
 
   // カード・コアの物理自由移動アクション
   moveCard: (instanceId: string, position: VirtualPosition) => void;
@@ -199,6 +218,19 @@ export const useGameStore = create<GameState>((set, get) => ({
   setToolMenuOpen: (val) =>
     set((s) => ({ isToolMenuOpen: typeof val === 'function' ? val(s.isToolMenuOpen) : val })),
   setSelectedCardForAction: (card) => set({ selectedCardForAction: card }),
+  bringCardToFront: (instanceId) => {
+    const { cards, localPlayerId } = get();
+    const card = cards[instanceId];
+    if (!card || card.ownerId !== localPlayerId || card.isDeckPlaceholder) return;
+    const layeredCards = placeCardOnTop(cards, localPlayerId, instanceId);
+    set((state) => ({
+      cards: layeredCards,
+      selectedCardForAction: state.selectedCardForAction?.instanceId === instanceId
+        ? { ...state.selectedCardForAction, position: { ...state.selectedCardForAction.position, zIndex: 80 } }
+        : state.selectedCardForAction,
+    }));
+    get().syncBoardState();
+  },
 
   setupInGame: () => {
     const { localPlayerId, myDeck, p2pSendCallback } = get();
@@ -381,7 +413,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const safePos: VirtualPosition = {
       x: Math.max(0, Math.min(BOARD_WIDTH - CARD_WIDTH, Math.round(position?.x ?? 500))),
       y: Math.max(0, Math.min(BOARD_HEIGHT - CARD_HEIGHT, Math.round(position?.y ?? 500))),
-      zIndex: Math.max(10, Math.min(50, (position?.zIndex ?? 10))),
+      zIndex: 80,
     };
 
     const detectedZone = detectZoneFromPosition(safePos);
@@ -416,12 +448,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       isFaceDown: nextIsFaceDown,
     };
 
-    set((state) => ({
-      cards: {
-        ...state.cards,
-        [instanceId]: updatedCard,
-      },
-    }));
+    set({ cards: placeCardOnTop({ ...cards, [instanceId]: updatedCard }, localPlayerId, instanceId) });
 
     p2pSendCallback?.({
       type: 'MOVE_CARD',
@@ -581,19 +608,18 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const currentAngle = targetCard.rotationAngle ?? (targetCard.physicalState === 'RESTED_90' ? 90 : 0);
     const nextAngle = ((currentAngle + 90) % 360) as 0 | 90 | 180 | 270;
+    const layeredCards = placeCardOnTop({
+      ...cards,
+      [instanceId]: { ...targetCard, rotationAngle: nextAngle },
+    }, localPlayerId, instanceId);
 
     set((state) => ({
-      cards: {
-        ...state.cards,
-        [instanceId]: {
-          ...state.cards[instanceId],
-          rotationAngle: nextAngle,
-        },
-      },
+      cards: layeredCards,
       selectedCardForAction: state.selectedCardForAction?.instanceId === instanceId
         ? {
             ...state.selectedCardForAction,
             rotationAngle: nextAngle,
+            position: { ...state.selectedCardForAction.position, zIndex: 80 },
           }
         : state.selectedCardForAction,
     }));
@@ -802,7 +828,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     // 2. 自陣の疲労カードを全回復
     const updatedCards = { ...cards };
     Object.values(cards).forEach((card) => {
-      if (card.ownerId === localPlayerId && (card.rotationAngle ?? 0) !== 0) {
+      if (card.ownerId === localPlayerId && card.zone === 'FIELD' && (card.rotationAngle ?? 0) !== 0) {
         updatedCards[card.instanceId] = {
           ...card,
           physicalState: 'FACE_UP',

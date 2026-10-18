@@ -32,7 +32,7 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '8px',
         animation: 'fadeIn 0.2s ease-out',
       }}
     >
@@ -43,8 +43,8 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          maxWidth: '90vw',
-          maxHeight: '85vh',
+          maxWidth: '96vw',
+          maxHeight: '92vh',
         }}
       >
         <button
@@ -72,8 +72,8 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
         {isFaceDown ? (
           <div
             style={{
-              width: 'min(480px, 85vw)',
-              height: 'min(672px, 75vh)',
+              width: 'min(94vw, calc(88vh * 5 / 7))',
+              aspectRatio: '5 / 7',
               backgroundColor: '#0f172a',
               borderRadius: '16px',
               border: '3px solid #334155',
@@ -96,9 +96,10 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
             src={imageUrl}
             alt={card.name}
             style={{
-              width: 'min(480px, 85vw)',
-              maxHeight: '75vh',
-              maxWidth: '85vw',
+              height: '88vh',
+              width: 'auto',
+              maxHeight: '88vh',
+              maxWidth: '94vw',
               borderRadius: '14px',
               border: '3px solid #38bdf8',
               boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 30px rgba(56, 189, 248, 0.4)',
@@ -108,8 +109,8 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
         ) : (
           <div
             style={{
-              width: 'min(480px, 85vw)',
-              height: 'min(672px, 75vh)',
+              width: 'min(94vw, calc(88vh * 5 / 7))',
+              aspectRatio: '5 / 7',
               background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
               borderRadius: '16px',
               border: '3px solid #38bdf8',
