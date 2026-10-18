@@ -135,6 +135,12 @@ export interface DeckCountCommand extends BaseCommand {
   count: number;
 }
 
+/** Shared match-level decision. Host (1P) determines and broadcasts it before play starts. */
+export interface FirstPlayerCommand extends BaseCommand {
+  type: 'FIRST_PLAYER';
+  firstPlayerId: PlayerId;
+}
+
 export interface SyncMasterStateCommand extends BaseCommand {
   type: 'SYNC_MASTER_STATE';
   cards: Record<string, CardInstance>;
@@ -198,6 +204,7 @@ export interface CountChangeCommand extends BaseCommand {
 export type P2PMessage =
   | HandshakeDeckCommand
   | DeckCountCommand
+  | FirstPlayerCommand
   | SyncMasterStateCommand
   | MoveCardCommand
   | FlipCardCommand

@@ -22,9 +22,10 @@ import { BOARD_HEIGHT, BOARD_WIDTH, CARD_HEIGHT, CARD_WIDTH, CORE_SIZE, SOUL_COR
 
 // 1414x1000 メインキャンバスのゾーン定義
 export const VIRTUAL_ZONES: ZoneBounds[] = [
-  { zone: 'BURST', x: 20, y: 30, width: 180, height: 260, name: 'バースト' },
-  { zone: 'LIFE', x: 20, y: 310, width: 180, height: 320, name: 'ライフ' },
-  { zone: 'RESERVE', x: 20, y: 650, width: 180, height: 320, name: 'リザーブ' },
+  { zone: 'BURST', x: 20, y: 30, width: 180, height: 240, name: 'バースト' },
+  { zone: 'LIFE', x: 20, y: 290, width: 180, height: 230, name: 'ライフ' },
+  { zone: 'RESERVE', x: 20, y: 540, width: 180, height: 230, name: 'リザーブ' },
+  { zone: 'VOID', x: 20, y: 790, width: 180, height: 180, name: 'ボイド' },
 
   // 右サイドバー
   { zone: 'DECK', x: 1190, y: 170, width: 204, height: 260, name: 'デッキ' },
@@ -86,6 +87,7 @@ export function detectZoneFromPosition(pos: VirtualPosition): ZoneType {
 
 interface GameState {
   localPlayerId: PlayerId;
+  firstPlayerId: PlayerId;
   currentViewMode: BoardViewMode; // 'MY_BOARD' | 'OPPONENT_BOARD'
   isExDrawerOpen: boolean;
   isToolMenuOpen: boolean;
@@ -102,6 +104,7 @@ interface GameState {
 
   // 初期化・セットアップ
   initStore: (localPlayerId: PlayerId, p2pSendCallback: (msg: P2PMessage) => void) => void;
+  setFirstPlayer: (playerId: PlayerId, broadcast?: boolean) => void;
   setLocalDeck: (deck: DeckData) => void;
   setupInGame: () => void;
 
@@ -128,8 +131,8 @@ interface GameState {
   spawnExCard: (card: DeckItem, position: VirtualPosition) => void;
   refreshStep: () => void;
   changeCount: (delta: number) => void;
-  addCoreToReserve: () => void;
-  removeCoreFromReserve: () => void;
+  addCoreToVoid: () => void;
+  removeCoreFromVoid: () => void;
   addLifeCore: () => void;
   removeLifeCore: () => void;
   resetBoard: () => void;
@@ -144,6 +147,7 @@ interface GameState {
 
 export const useGameStore = create<GameState>((set, get) => ({
   localPlayerId: '1P',
+  firstPlayerId: '1P',
   currentViewMode: 'MY_BOARD',
   isExDrawerOpen: false,
   isToolMenuOpen: false,
@@ -160,7 +164,20 @@ export const useGameStore = create<GameState>((set, get) => ({
   myDeck: null,
 
   initStore: (localPlayerId, p2pSendCallback) => {
-    set({ localPlayerId, p2pSendCallback });
+    set({ localPlayerId, p2pSendCallback, firstPlayerId: '1P' });
+  },
+
+  setFirstPlayer: (playerId, broadcast = false) => {
+    const { localPlayerId, p2pSendCallback } = get();
+    set({ firstPlayerId: playerId });
+    if (broadcast) {
+      p2pSendCallback?.({
+        type: 'FIRST_PLAYER',
+        senderId: localPlayerId,
+        firstPlayerId: playerId,
+        timestamp: Date.now(),
+      });
+    }
   },
 
   setLocalDeck: (deck) => {
@@ -202,7 +219,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         zone: 'LIFE',
         position: {
           x: 55 + (i % 2) * 70,
-          y: 360 + Math.floor(i / 2) * 55,
+          y: 320 + Math.floor(i / 2) * 55,
           zIndex: 100 + i,
         },
       };
@@ -215,7 +232,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       ownerId: pid,
       isSoulCore: true,
       zone: 'RESERVE',
-      position: { x: 55, y: 700, zIndex: 110 },
+      position: { x: 55, y: 565, zIndex: 110 },
     };
 
     // リザーブの通常コア 3個 (青)
@@ -228,7 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         zone: 'RESERVE',
         position: {
           x: 55 + ((i + 1) % 2) * 70,
-          y: 700 + Math.floor((i + 1) / 2) * 55,
+          y: 565 + Math.floor((i + 1) / 2) * 55,
           zIndex: 100 + i,
         },
       };
@@ -760,7 +777,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (inTrash) {
           const newPos: VirtualPosition = {
             x: 55 + (resIdx % 2) * 70,
-            y: 700 + Math.floor(resIdx / 2) * 50,
+            y: 565 + Math.floor(resIdx / 2) * 50,
             zIndex: 100 + resIdx,
           };
           updatedCores[core.id] = {
@@ -830,17 +847,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  addCoreToReserve: () => {
+  addCoreToVoid: () => {
     const { localPlayerId, p2pSendCallback } = get();
     const coreId = `${localPlayerId}_extra_core_${Date.now()}`;
     const newCore: CoreInstance = {
       id: coreId,
       ownerId: localPlayerId,
       isSoulCore: false,
-      zone: 'RESERVE',
+      zone: 'VOID',
       position: {
         x: 55 + Math.random() * 70,
-        y: 720 + Math.random() * 50,
+        y: 815 + Math.random() * 110,
         zIndex: 150,
       },
     };
@@ -861,10 +878,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().syncBoardState();
   },
 
-  removeCoreFromReserve: () => {
+  removeCoreFromVoid: () => {
     const { localPlayerId, cores, p2pSendCallback } = get();
     const resCores = Object.values(cores).filter(
-      (c) => c.ownerId === localPlayerId && c.zone === 'RESERVE' && !c.isSoulCore
+      (c) => c.ownerId === localPlayerId && c.zone === 'VOID' && !c.isSoulCore
     );
     if (resCores.length === 0) return;
 
@@ -895,7 +912,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       zone: 'LIFE',
       position: {
         x: 55 + (lifeCount % 2) * 70,
-        y: 360 + Math.floor(lifeCount / 2) * 55,
+        y: 320 + Math.floor(lifeCount / 2) * 55,
         zIndex: 120 + lifeCount,
       },
     };
@@ -937,6 +954,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         set((state) => ({
           deckCounts: { ...state.deckCounts, [msg.senderId]: safeCount },
         }));
+        break;
+      }
+
+      case 'FIRST_PLAYER': {
+        set({ firstPlayerId: msg.firstPlayerId });
         break;
       }
 

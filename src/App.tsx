@@ -25,6 +25,7 @@ export const App: React.FC = () => {
   const initStore = useGameStore((s) => s.initStore);
   const applyP2PMessage = useGameStore((s) => s.applyP2PMessage);
   const setupInGame = useGameStore((s) => s.setupInGame);
+  const setFirstPlayer = useGameStore((s) => s.setFirstPlayer);
   const setLocalDeck = useGameStore((s) => s.setLocalDeck);
   const myDeck = useGameStore((s) => s.myDeck);
 
@@ -125,6 +126,11 @@ export const App: React.FC = () => {
 
   // インゲーム開始
   const handleEnterGame = () => {
+    // The host performs one random draw and broadcasts the shared result.
+    // The guest keeps the synchronized/default result until that message arrives.
+    if (isHost) {
+      setFirstPlayer(Math.random() < 0.5 ? '1P' : '2P', true);
+    }
     setupInGame();
     setScene('INGAME');
   };
@@ -132,6 +138,7 @@ export const App: React.FC = () => {
   const handleStartSolo = (deck: DeckData | null) => {
     if (deck) setLocalDeck(deck);
     initStore('1P', () => undefined);
+    setFirstPlayer(Math.random() < 0.5 ? '1P' : '2P');
     setupInGame();
     setScene('INGAME');
   };

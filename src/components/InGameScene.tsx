@@ -8,7 +8,7 @@
  * - Full null-safety throughout
  */
 
-import React, { useRef, useState, Component } from 'react';
+import React, { useEffect, useRef, useState, Component } from 'react';
 import { createPortal } from 'react-dom';
 import {
   DndContext,
@@ -25,13 +25,12 @@ import { useGameStore } from '../store/gameStore';
 import { Viewport, useViewport } from './Viewport';
 import { CardObject } from './CardObject';
 import { CoreObject } from './CoreObject';
-import { ActionPanel } from './ActionPanel';
+import { ActionPanel, ZoneActionMenu } from './ActionPanel';
 import { ZoomModal } from './ZoomModal';
 import { CardInstance, CoreInstance, DeckItem, VirtualPosition, ZoneType } from '../types';
 import { BOARD_HEIGHT, BOARD_WIDTH, CARD_HEIGHT, CARD_WIDTH, COMMON_CARD_BACK } from '../board';
 import {
   Menu,
-  Sparkles,
   Layers,
   LogOut,
   Plus,
@@ -119,6 +118,46 @@ export const InGameScene: React.FC<InGameSceneProps> = ({ onQuit }) => {
             <BoardContent onQuit={onQuit} />
           </Viewport>
         </InGameErrorBoundary>
+        <FirstPlayerAnnouncement />
+      </div>
+    </div>
+  );
+};
+
+const FirstPlayerAnnouncement: React.FC = () => {
+  const localPlayerId = useGameStore((s) => s.localPlayerId);
+  const firstPlayerId = useGameStore((s) => s.firstPlayerId);
+  const [visible, setVisible] = useState(true);
+  const isFirst = localPlayerId === firstPlayerId;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(false), 3200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0, zIndex: 20001, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none', backgroundColor: 'rgba(2, 6, 23, 0.22)', animation: 'fadeIn 0.25s ease-out',
+      }}
+    >
+      <div
+        style={{
+          minWidth: 'min(420px, 82vw)', padding: '28px 36px', textAlign: 'center', borderRadius: '18px',
+          color: isFirst ? '#fef3c7' : '#e2e8f0', border: `2px solid ${isFirst ? '#fbbf24' : '#cbd5e1'}`,
+          background: isFirst ? 'linear-gradient(135deg, rgba(120, 53, 15, 0.96), rgba(69, 26, 3, 0.96))' : 'linear-gradient(135deg, rgba(71, 85, 105, 0.96), rgba(30, 41, 59, 0.96))',
+          boxShadow: isFirst ? '0 0 45px rgba(251, 191, 36, 0.55)' : '0 0 45px rgba(203, 213, 225, 0.35)',
+        }}
+      >
+        <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '0.15em', opacity: 0.85 }}>
+          {isFirst ? 'FIRST PLAYER' : 'SECOND PLAYER'}
+        </div>
+        <div style={{ fontSize: '38px', fontWeight: 900, marginTop: '8px' }}>
+          あなたが{isFirst ? '先攻です' : '後攻です'}
+        </div>
       </div>
     </div>
   );
@@ -239,7 +278,8 @@ const DroppableZone: React.FC<{
   title: string;
   countBadge?: number;
   children?: React.ReactNode;
-}> = ({ zone, x, y, width, height, title, countBadge, children }) => {
+  onClick?: () => void;
+}> = ({ zone, x, y, width, height, title, countBadge, children, onClick }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `zone-drop-${zone}`,
     data: { type: 'ZONE', zone },
@@ -248,6 +288,10 @@ const DroppableZone: React.FC<{
   return (
     <div
       ref={setNodeRef}
+      onClick={onClick ? (event) => {
+        event.stopPropagation();
+        onClick();
+      } : undefined}
       style={{
         position: 'absolute',
         left: `${x}px`,
@@ -263,6 +307,7 @@ const DroppableZone: React.FC<{
         flexDirection: 'column',
         transition: 'all 0.15s ease',
         overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default',
       }}
     >
       <div
@@ -313,6 +358,7 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
   const players = useGameStore((s) => s.players || {});
   const myDeck = useGameStore((s) => s.myDeck);
   const currentViewMode = useGameStore((s) => s.currentViewMode || 'MY_BOARD');
+  const firstPlayerId = useGameStore((s) => s.firstPlayerId);
 
   const isExDrawerOpen = useGameStore((s) => s.isExDrawerOpen);
   const setExDrawerOpen = useGameStore((s) => s.setExDrawerOpen);
@@ -323,18 +369,13 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
   const moveCore = useGameStore((s) => s.moveCore);
   const changeCount = useGameStore((s) => s.changeCount);
   const refreshStep = useGameStore((s) => s.refreshStep);
-  const shuffleDeck = useGameStore((s) => s.shuffleDeck);
-  const drawCard = useGameStore((s) => s.drawCard);
-  const addCoreToReserve = useGameStore((s) => s.addCoreToReserve);
-  const removeCoreFromReserve = useGameStore((s) => s.removeCoreFromReserve);
-  const addLifeCore = useGameStore((s) => s.addLifeCore);
-  const removeLifeCore = useGameStore((s) => s.removeLifeCore);
   const resetBoard = useGameStore((s) => s.resetBoard);
   const spawnExCard = useGameStore((s) => s.spawnExCard);
 
   const selectedCardForAction = useGameStore((s) => s.selectedCardForAction);
   const setSelectedCardForAction = useGameStore((s) => s.setSelectedCardForAction);
   const [zoomCard, setZoomCard] = useState<CardInstance | null>(null);
+  const [activeZoneMenu, setActiveZoneMenu] = useState<ZoneActionMenu | null>(null);
 
   // ドラッグ中のアクティブアイテム（DragOverlay用）
   const [activeItem, setActiveItem] = useState<{
@@ -432,17 +473,20 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
     voidCores: 100,
     count: 0,
   };
+  const displayedPlayerIsFirst = targetPlayerId === firstPlayerId;
 
   // ゾーンごとのコア個数を算出
   let reserveCoreCount = 0;
   let lifeCoreCount = 0;
   let trashCoreCount = 0;
+  let voidCoreCount = 0;
 
   Object.values(cores).forEach((c) => {
     if (!c || c.ownerId !== targetPlayerId) return;
     if (c.zone === 'RESERVE') reserveCoreCount++;
     else if (c.zone === 'LIFE') lifeCoreCount++;
     else if (c.zone === 'TRASH_CORE') trashCoreCount++;
+    else if (c.zone === 'VOID') voidCoreCount++;
   });
 
   // デッキ・トラッシュ枚数
@@ -456,7 +500,10 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
       <div
-        onClick={() => setSelectedCardForAction(null)}
+        onClick={() => {
+          setSelectedCardForAction(null);
+          setActiveZoneMenu(null);
+        }}
         style={{
           width: `${BOARD_WIDTH}px`,
           height: `${BOARD_HEIGHT}px`,
@@ -473,30 +520,47 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         {/* 左サイドバー: バースト */}
         <DroppableZone
           zone="BURST"
-          {...boardPosition(20, 30, 180, 260)}
+          {...boardPosition(20, 30, 180, 240)}
           width={180}
-          height={260}
+          height={240}
           title={isShowingMyBoard ? 'バースト' : '相手バースト'}
         />
 
         {/* 左サイドバー: ライフ */}
         <DroppableZone
           zone="LIFE"
-          {...boardPosition(20, 310, 180, 320)}
+          {...boardPosition(20, 290, 180, 230)}
           width={180}
-          height={320}
+          height={230}
           title={isShowingMyBoard ? 'ライフ' : '相手ライフ'}
           countBadge={lifeCoreCount}
+          onClick={isShowingMyBoard ? () => {
+            setSelectedCardForAction(null);
+            setActiveZoneMenu('LIFE');
+          } : undefined}
         />
 
         {/* 左サイドバー: リザーブ */}
         <DroppableZone
           zone="RESERVE"
-          {...boardPosition(20, 650, 180, 320)}
+          {...boardPosition(20, 540, 180, 230)}
           width={180}
-          height={320}
+          height={230}
           title={isShowingMyBoard ? 'リザーブ' : '相手リザーブ'}
           countBadge={reserveCoreCount}
+        />
+
+        <DroppableZone
+          zone="VOID"
+          {...boardPosition(20, 790, 180, 180)}
+          width={180}
+          height={180}
+          title={isShowingMyBoard ? 'ボイド' : '相手ボイド'}
+          countBadge={voidCoreCount}
+          onClick={isShowingMyBoard ? () => {
+            setSelectedCardForAction(null);
+            setActiveZoneMenu('VOID');
+          } : undefined}
         />
 
         {/* 中央: メインフィールド (広大キャンバス) */}
@@ -524,13 +588,37 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
           </div>
         </DroppableZone>
 
-        {/* 右サイドバー: カウントカウンター */}
+        {/* 右上: 先攻・後攻マーカーとコンパクトなカウント */}
         <div
           style={{
             position: 'absolute',
-            ...boardPosition(1190, 30, 204, 120),
-            width: '204px',
-            height: '120px',
+            ...boardPosition(1190, 30, 76, 96),
+            width: '76px',
+            height: '96px',
+            borderRadius: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            boxSizing: 'border-box',
+            color: displayedPlayerIsFirst ? '#fef3c7' : '#e2e8f0',
+            border: `2px solid ${displayedPlayerIsFirst ? '#fbbf24' : '#cbd5e1'}`,
+            background: displayedPlayerIsFirst ? 'linear-gradient(135deg, #92400e, #78350f)' : 'linear-gradient(135deg, #64748b, #334155)',
+            boxShadow: displayedPlayerIsFirst ? '0 0 14px rgba(251,191,36,0.5)' : '0 0 12px rgba(203,213,225,0.32)',
+          }}
+        >
+          <span style={{ fontSize: '22px', lineHeight: 1 }}>{displayedPlayerIsFirst ? '♛' : '♜'}</span>
+          <span style={{ fontSize: '16px', fontWeight: 900 }}>{displayedPlayerIsFirst ? '先攻' : '後攻'}</span>
+          <span style={{ fontSize: '11px', fontWeight: 700 }}>{displayedPlayerIsFirst ? '1st' : '2nd'}</span>
+        </div>
+
+        <div
+          style={{
+            position: 'absolute',
+            ...boardPosition(1276, 30, 118, 96),
+            width: '118px',
+            height: '96px',
             backgroundColor: 'rgba(30, 41, 59, 0.6)',
             border: '1px solid #334155',
             borderRadius: '8px',
@@ -542,22 +630,22 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#94a3b8' }}>
             {isShowingMyBoard ? 'カウント' : '相手カウント'}
           </div>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#38bdf8' }}>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#38bdf8' }}>
             {currentResource?.count ?? 0}
           </div>
           {isShowingMyBoard && (
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '5px' }}>
               <button
                 onClick={() => changeCount(-1)}
                 style={{
                   backgroundColor: '#334155',
                   color: '#fff',
                   border: 'none',
-                  width: '28px',
-                  height: '24px',
+                  width: '24px',
+                  height: '22px',
                   borderRadius: '4px',
                   cursor: 'pointer',
                   display: 'flex',
@@ -565,7 +653,7 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
                   justifyContent: 'center',
                 }}
               >
-                <Minus size={14} />
+                <Minus size={12} />
               </button>
               <button
                 onClick={() => changeCount(1)}
@@ -573,8 +661,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
                   backgroundColor: '#0284c7',
                   color: '#fff',
                   border: 'none',
-                  width: '28px',
-                  height: '24px',
+                  width: '24px',
+                  height: '22px',
                   borderRadius: '4px',
                   cursor: 'pointer',
                   display: 'flex',
@@ -582,7 +670,7 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
                   justifyContent: 'center',
                 }}
               >
-                <Plus size={14} />
+                <Plus size={12} />
               </button>
             </div>
           )}
@@ -596,6 +684,10 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
           height={260}
           title={isShowingMyBoard ? 'デッキ' : '相手デッキ'}
           countBadge={deckCount}
+          onClick={isShowingMyBoard ? () => {
+            setSelectedCardForAction(null);
+            setActiveZoneMenu('DECK');
+          } : undefined}
         />
 
         {/* 右サイドバー: トラッシュ (カード) */}
@@ -841,121 +933,6 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
 
             <button
               onClick={() => {
-                shuffleDeck();
-                setToolMenuOpen(false);
-              }}
-              style={{
-                backgroundColor: '#0284c7',
-                color: '#fff',
-                padding: '10px',
-                borderRadius: '6px',
-                border: 'none',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
-              山札をシャッフル
-            </button>
-
-            <div style={{ height: '1px', backgroundColor: '#334155', margin: '6px 0' }} />
-
-            <button
-              onClick={() => drawCard('HAND')}
-              style={{
-                backgroundColor: '#334155',
-                color: '#f8fafc',
-                padding: '9px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              デッキ上から引く (手札)
-            </button>
-
-            <button
-              onClick={() => drawCard('HAND', true)}
-              style={{
-                backgroundColor: '#334155',
-                color: '#f8fafc',
-                padding: '9px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              デッキ下から引く (手札)
-            </button>
-
-            <button
-              onClick={() => drawCard('FIELD')}
-              style={{
-                backgroundColor: '#334155',
-                color: '#f8fafc',
-                padding: '9px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              オープン (フィールドへ)
-            </button>
-
-            <div style={{ height: '1px', backgroundColor: '#334155', margin: '6px 0' }} />
-
-            <button
-              onClick={addCoreToReserve}
-              style={{
-                backgroundColor: '#0369a1',
-                color: '#fff',
-                padding: '8px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <Sparkles size={14} />
-              リザーブにコア追加
-            </button>
-
-            <button
-              onClick={removeCoreFromReserve}
-              style={{
-                backgroundColor: '#991b1b',
-                color: '#fff',
-                padding: '8px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              リザーブコア1つ消去
-            </button>
-
-            <div style={{ height: '1px', backgroundColor: '#334155', margin: '6px 0' }} />
-
-            <button
-              onClick={addLifeCore}
-              style={{ backgroundColor: '#0369a1', color: '#fff', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
-            >
-              ライフ +1
-            </button>
-
-            <button
-              onClick={removeLifeCore}
-              style={{ backgroundColor: '#991b1b', color: '#fff', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
-            >
-              ライフ -1
-            </button>
-
-            <button
-              onClick={() => {
                 resetBoard();
                 setToolMenuOpen(false);
               }}
@@ -986,7 +963,11 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
       {/* 画面固定ボトムシート/アクションバー */}
       <ActionPanel
         card={selectedCardForAction}
-        onClose={() => setSelectedCardForAction(null)}
+        zoneMenu={selectedCardForAction ? null : activeZoneMenu}
+        onClose={() => {
+          setSelectedCardForAction(null);
+          setActiveZoneMenu(null);
+        }}
         onZoom={(card) => setZoomCard(card)}
       />
 

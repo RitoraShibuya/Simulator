@@ -6,27 +6,46 @@
 import React from 'react';
 import { CardInstance } from '../types';
 import { useGameStore } from '../store/gameStore';
-import { RotateCw, Eye, ArrowUp, ArrowDown, ZoomIn, X, FlipHorizontal } from 'lucide-react';
+import { RotateCw, Eye, ArrowUp, ArrowDown, ZoomIn, X, FlipHorizontal, Plus, Minus, Shuffle, PackageOpen } from 'lucide-react';
+
+export type ZoneActionMenu = 'VOID' | 'DECK' | 'LIFE';
 
 interface ActionPanelProps {
   card: CardInstance | null;
+  zoneMenu: ZoneActionMenu | null;
   onClose: () => void;
   onZoom: (card: CardInstance) => void;
 }
 
-export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom }) => {
+export const ActionPanel: React.FC<ActionPanelProps> = ({ card, zoneMenu, onClose, onZoom }) => {
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const flipCard = useGameStore((s) => s.flipCard);
   const rotateCard = useGameStore((s) => s.rotateCard);
   const toggleCardSide = useGameStore((s) => s.toggleCardSide);
   const returnToDeck = useGameStore((s) => s.returnToDeck);
+  const addCoreToVoid = useGameStore((s) => s.addCoreToVoid);
+  const removeCoreFromVoid = useGameStore((s) => s.removeCoreFromVoid);
+  const drawCard = useGameStore((s) => s.drawCard);
+  const shuffleDeck = useGameStore((s) => s.shuffleDeck);
+  const addLifeCore = useGameStore((s) => s.addLifeCore);
+  const removeLifeCore = useGameStore((s) => s.removeLifeCore);
 
-  if (!card) return null;
+  if (!card && !zoneMenu) return null;
 
-  const isMine = card.ownerId === localPlayerId;
-  const isRested = (card.rotationAngle ?? (card.physicalState === 'RESTED_90' ? 90 : 0)) % 180 === 90;
-  const isFaceDown = card.isFaceDown;
-  const hasBackSide = Boolean(card.backDataUrl);
+  const isMine = card?.ownerId === localPlayerId;
+  const isRested = card ? (card.rotationAngle ?? (card.physicalState === 'RESTED_90' ? 90 : 0)) % 180 === 90 : false;
+  const isFaceDown = card?.isFaceDown ?? false;
+  const hasBackSide = Boolean(card?.backDataUrl);
+  const zoneTitle = zoneMenu === 'VOID' ? 'ボイド' : zoneMenu === 'DECK' ? 'デッキ' : 'ライフ';
+  const zoneDescription = zoneMenu === 'VOID'
+    ? 'ボイドのコアを管理します'
+    : zoneMenu === 'DECK'
+      ? '山札を操作します'
+      : 'ライフコアを管理します';
+  const runZoneAction = (action: () => void) => {
+    action();
+    onClose();
+  };
 
   return (
     <div
@@ -53,8 +72,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
         justifyContent: 'center',
       }}
     >
-      {/* 選択中カード情報 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      {/* 選択中カード / タップしたゾーンの情報 */}
+      {card ? <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {card.dataUrl ? (
           <img
             src={card.dataUrl}
@@ -93,13 +112,16 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
             {card.zone} {isRested ? '・疲労中' : ''} {isFaceDown ? '・裏面' : ''}
           </span>
         </div>
-      </div>
+      </div> : <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
+        <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#f8fafc' }}>{zoneTitle}</span>
+        <span style={{ fontSize: '14px', color: '#94a3b8', marginTop: '4px' }}>{zoneDescription}</span>
+      </div>}
 
       <div style={{ height: '48px', width: '1px', backgroundColor: '#334155' }} />
 
       {/* アクションボタングループ */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <button
+        {card && <button
           onClick={() => {
             onZoom(card);
             onClose();
@@ -122,9 +144,9 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
         >
           <ZoomIn size={22} />
           拡大
-        </button>
+        </button>}
 
-        {isMine && (
+        {card && isMine && (
           <>
             <button
               onClick={() => {
@@ -235,6 +257,39 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
             </button>
           </>
         )}
+
+        {zoneMenu === 'VOID' && <>
+          <button onClick={() => runZoneAction(addCoreToVoid)} style={zoneButtonStyle('#0369a1')}>
+            <Plus size={22} /> コア +1（ボイドへ）
+          </button>
+          <button onClick={() => runZoneAction(removeCoreFromVoid)} style={zoneButtonStyle('#991b1b')}>
+            <Minus size={22} /> コア -1（ボイドから）
+          </button>
+        </>}
+
+        {zoneMenu === 'DECK' && <>
+          <button onClick={() => runZoneAction(() => drawCard('HAND'))} style={zoneButtonStyle('#334155')}>
+            <ArrowUp size={22} /> 1枚ドロー（デッキ上）
+          </button>
+          <button onClick={() => runZoneAction(() => drawCard('HAND', true))} style={zoneButtonStyle('#334155')}>
+            <ArrowDown size={22} /> デッキ下からドロー
+          </button>
+          <button onClick={() => runZoneAction(() => drawCard('FIELD'))} style={zoneButtonStyle('#0f766e')}>
+            <PackageOpen size={22} /> オープン（公開）
+          </button>
+          <button onClick={() => runZoneAction(shuffleDeck)} style={zoneButtonStyle('#7c3aed')}>
+            <Shuffle size={22} /> シャッフル
+          </button>
+        </>}
+
+        {zoneMenu === 'LIFE' && <>
+          <button onClick={() => runZoneAction(addLifeCore)} style={zoneButtonStyle('#0369a1')}>
+            <Plus size={22} /> ライフ +1
+          </button>
+          <button onClick={() => runZoneAction(removeLifeCore)} style={zoneButtonStyle('#991b1b')}>
+            <Minus size={22} /> ライフ -1
+          </button>
+        </>}
       </div>
 
       <button
@@ -256,3 +311,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
     </div>
   );
 };
+
+const zoneButtonStyle = (backgroundColor: string): React.CSSProperties => ({
+  display: 'flex', alignItems: 'center', gap: '8px', backgroundColor, color: '#f8fafc', border: 'none',
+  padding: '10px 16px', borderRadius: '6px', fontSize: '16px', cursor: 'pointer', minHeight: '52px', minWidth: '168px',
+});
