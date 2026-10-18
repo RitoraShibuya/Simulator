@@ -34,7 +34,9 @@ export const Viewport: React.FC<ViewportProps> = ({ children }) => {
       // NaN / 0除算防止: 幅や高さが0のときはスキップ
       if (!clientWidth || !clientHeight) return;
       // 盤面の一辺を常に利用可能な幅・高さの小さい方へ合わせる（object-fit: contain相当）。
-      const calculatedScale = Math.min(clientWidth / 1000, clientHeight / 1000);
+      const availableWidth = Math.min(window.innerWidth, clientWidth);
+      const availableHeight = Math.min(window.innerHeight, clientHeight);
+      const calculatedScale = Math.min(availableWidth / 1000, availableHeight / 1000);
       // isFiniteチェックでNaNとInfinityを確実に遮断
       const safeScale = Number.isFinite(calculatedScale) ? Math.max(0.01, calculatedScale) : 1;
       setScale(safeScale);
@@ -72,6 +74,8 @@ export const Viewport: React.FC<ViewportProps> = ({ children }) => {
         style={{
           width: '100%',
           height: '100%',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
           minWidth: 0,
           minHeight: 0,
           overflow: 'hidden',
@@ -88,6 +92,7 @@ export const Viewport: React.FC<ViewportProps> = ({ children }) => {
           style={{
             width: '1000px',
             height: '1000px',
+            flex: '0 0 1000px',
             transform: `scale(${scale})`,
             transformOrigin: 'center center',
             transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',

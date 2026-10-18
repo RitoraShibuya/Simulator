@@ -82,6 +82,7 @@ export interface CardInstance {
   attachedSoulCore: boolean;  // ソウルコアが乗っているか
   attachedBraveIds?: string[]; // 合体しているブレイヴの instanceId
   isDeckPlaceholder?: boolean; // 実デッキを隠して表示するダミー1枚
+  rotationAngle?: 0 | 90 | 180 | 270;
 }
 
 // コアのインスタンス
@@ -162,6 +163,7 @@ export interface RotateCardCommand extends BaseCommand {
   type: 'ROTATE_CARD';
   instanceId: string;
   physicalState: CardPhysicalState;
+  rotationAngle: 0 | 90 | 180 | 270;
 }
 
 export interface MoveCoreCommand extends BaseCommand {

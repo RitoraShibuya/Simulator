@@ -6,18 +6,20 @@
 import React, { useRef, useState } from 'react';
 import { DeckData } from '../types';
 import { useGameStore } from '../store/gameStore';
-import { Swords, LogIn, ArrowLeft, Upload, CheckCircle2 } from 'lucide-react';
+import { Swords, LogIn, ArrowLeft, Upload, CheckCircle2, Play } from 'lucide-react';
 
 interface LobbySceneProps {
   onBackToTitle: () => void;
   onHostCreate: (roomCode: string, deck: DeckData | null) => void;
   onGuestJoin: (roomCode: string, deck: DeckData | null) => void;
+  onStartSolo: (deck: DeckData | null) => void;
 }
 
 export const LobbyScene: React.FC<LobbySceneProps> = ({
   onBackToTitle,
   onHostCreate,
   onGuestJoin,
+  onStartSolo,
 }) => {
   const [selectedDeck, setSelectedDeck] = useState<DeckData | null>(null);
   const [roomCodeInput, setRoomCodeInput] = useState<string>('');
@@ -156,6 +158,21 @@ export const LobbyScene: React.FC<LobbySceneProps> = ({
             )}
           </div>
         </div>
+
+        <button
+          onClick={() => onStartSolo(selectedDeck)}
+          disabled={!selectedDeck}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            backgroundColor: selectedDeck ? '#16a34a' : '#334155', color: selectedDeck ? '#fff' : '#94a3b8',
+            border: 'none', padding: '14px', borderRadius: '8px', fontSize: '15px', fontWeight: 'bold',
+            cursor: selectedDeck ? 'pointer' : 'not-allowed',
+            boxShadow: selectedDeck ? '0 6px 20px -3px rgba(22, 163, 74, 0.5)' : 'none',
+          }}
+        >
+          <Play size={18} />
+          １人回し（ソロプレイ開始）
+        </button>
 
         {/* ホスト部屋作成 */}
         <button

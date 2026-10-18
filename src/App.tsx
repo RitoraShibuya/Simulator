@@ -25,6 +25,7 @@ export const App: React.FC = () => {
   const initStore = useGameStore((s) => s.initStore);
   const applyP2PMessage = useGameStore((s) => s.applyP2PMessage);
   const setupInGame = useGameStore((s) => s.setupInGame);
+  const setLocalDeck = useGameStore((s) => s.setLocalDeck);
   const myDeck = useGameStore((s) => s.myDeck);
 
   const addLog = (msg: string) => {
@@ -128,7 +129,8 @@ export const App: React.FC = () => {
     setScene('INGAME');
   };
 
-  const handleStartSolo = () => {
+  const handleStartSolo = (deck: DeckData | null) => {
+    if (deck) setLocalDeck(deck);
     initStore('1P', () => undefined);
     setupInGame();
     setScene('INGAME');
@@ -153,7 +155,6 @@ export const App: React.FC = () => {
         <TitleScene
           onGoDeckBuilder={() => setScene('DECK_BUILDER')}
           onGoLobby={() => setScene('LOBBY')}
-          onStartSolo={handleStartSolo}
         />
       )}
 
@@ -166,6 +167,7 @@ export const App: React.FC = () => {
           onBackToTitle={() => setScene('TITLE')}
           onHostCreate={handleHostCreate}
           onGuestJoin={handleGuestJoin}
+          onStartSolo={handleStartSolo}
         />
       )}
 

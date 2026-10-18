@@ -527,20 +527,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     const targetCard = cards[instanceId];
     if (!targetCard || targetCard.ownerId !== localPlayerId || targetCard.isDeckPlaceholder) return;
 
-    const nextState = targetCard.physicalState === 'RESTED_90' ? 'FACE_UP' : 'RESTED_90';
+    const currentAngle = targetCard.rotationAngle ?? (targetCard.physicalState === 'RESTED_90' ? 90 : 0);
+    const nextAngle = ((currentAngle + 90) % 360) as 0 | 90 | 180 | 270;
 
     set((state) => ({
       cards: {
         ...state.cards,
         [instanceId]: {
           ...state.cards[instanceId],
-          physicalState: nextState,
+          rotationAngle: nextAngle,
         },
       },
       selectedCardForAction: state.selectedCardForAction?.instanceId === instanceId
         ? {
             ...state.selectedCardForAction,
-            physicalState: nextState,
+            rotationAngle: nextAngle,
           }
         : state.selectedCardForAction,
     }));
@@ -549,7 +550,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       type: 'ROTATE_CARD',
       senderId: localPlayerId,
       instanceId,
-      physicalState: nextState,
+      physicalState: targetCard.physicalState,
+      rotationAngle: nextAngle,
       timestamp: Date.now(),
     });
     get().syncBoardState();
@@ -753,6 +755,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           senderId: localPlayerId,
           instanceId: card.instanceId,
           physicalState: 'FACE_UP',
+          rotationAngle: 0,
           timestamp: Date.now(),
         });
       }
@@ -1030,6 +1033,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               [msg.instanceId]: {
                 ...card,
                 physicalState: msg.physicalState,
+                rotationAngle: msg.rotationAngle,
               },
             },
           };

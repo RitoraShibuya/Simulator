@@ -67,12 +67,12 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
     card.visibility === 'HIDDEN_ALL' ||
     (card.visibility === 'PRIVATE_OWNER' && !isMine);
 
-  const isRested = card.physicalState === 'RESTED_90';
+  const canonicalRotation = card.rotationAngle ?? (card.physicalState === 'RESTED_90' ? 90 : 0);
 
   // 向き:
   // 自陣: 0deg (疲労時 90deg)
   // 相手陣: 180deg (疲労時 270deg)
-  const baseRotation = isMine ? (isRested ? 90 : 0) : (isRested ? 270 : 180);
+  const baseRotation = isMine ? canonicalRotation : (canonicalRotation + 180) % 360;
 
   const isSelected = selectedCardForAction?.instanceId === card.instanceId;
 

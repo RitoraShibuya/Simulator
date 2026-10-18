@@ -23,7 +23,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
   if (!card) return null;
 
   const isMine = card.ownerId === localPlayerId;
-  const isRested = card.physicalState === 'RESTED_90';
+  const isRested = (card.rotationAngle ?? (card.physicalState === 'RESTED_90' ? 90 : 0)) % 180 === 90;
   const isFaceDown = card.physicalState === 'FACE_DOWN';
 
   return (
