@@ -6,7 +6,7 @@
 import React from 'react';
 import { CardInstance } from '../types';
 import { useGameStore } from '../store/gameStore';
-import { RotateCw, Eye, ArrowUp, ArrowDown, ZoomIn, X } from 'lucide-react';
+import { RotateCw, Eye, ArrowUp, ArrowDown, ZoomIn, X, FlipHorizontal } from 'lucide-react';
 
 interface ActionPanelProps {
   card: CardInstance | null;
@@ -18,13 +18,15 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const flipCard = useGameStore((s) => s.flipCard);
   const rotateCard = useGameStore((s) => s.rotateCard);
+  const toggleCardSide = useGameStore((s) => s.toggleCardSide);
   const returnToDeck = useGameStore((s) => s.returnToDeck);
 
   if (!card) return null;
 
   const isMine = card.ownerId === localPlayerId;
   const isRested = (card.rotationAngle ?? (card.physicalState === 'RESTED_90' ? 90 : 0)) % 180 === 90;
-  const isFaceDown = card.physicalState === 'FACE_DOWN';
+  const isFaceDown = card.isFaceDown;
+  const hasBackSide = Boolean(card.backDataUrl);
 
   return (
     <div
@@ -40,10 +42,10 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
         border: '1.5px solid #38bdf8',
         borderRadius: '12px',
         boxShadow: '0 12px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.35)',
-        padding: '10px 16px',
+        padding: '16px 22px',
         display: 'flex',
         alignItems: 'center',
-        gap: '14px',
+        gap: '18px',
         maxWidth: '92vw',
         animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         boxSizing: 'border-box',
@@ -52,14 +54,14 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
       }}
     >
       {/* 選択中カード情報 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {card.dataUrl ? (
           <img
             src={card.dataUrl}
             alt={card.name}
             style={{
-              width: '28px',
-              height: '39px',
+              width: '56px',
+              height: '78px',
               objectFit: 'cover',
               borderRadius: '4px',
               border: '1px solid #334155',
@@ -68,15 +70,15 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
         ) : (
           <div
             style={{
-              width: '28px',
-              height: '39px',
+              width: '56px',
+              height: '78px',
               backgroundColor: '#1e293b',
               borderRadius: '4px',
               border: '1px solid #334155',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '8px',
+              fontSize: '14px',
               color: '#94a3b8',
             }}
           >
@@ -84,19 +86,19 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#f8fafc', whiteSpace: 'nowrap' }}>
             {card.name.length > 12 ? `${card.name.slice(0, 12)}...` : card.name}
           </span>
-          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+          <span style={{ fontSize: '14px', color: '#94a3b8' }}>
             {card.zone} {isRested ? '・疲労中' : ''} {isFaceDown ? '・裏面' : ''}
           </span>
         </div>
       </div>
 
-      <div style={{ height: '24px', width: '1px', backgroundColor: '#334155' }} />
+      <div style={{ height: '48px', width: '1px', backgroundColor: '#334155' }} />
 
       {/* アクションボタングループ */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <button
           onClick={() => {
             onZoom(card);
@@ -105,20 +107,20 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
             backgroundColor: '#0284c7',
             color: '#fff',
             border: 'none',
-            padding: '7px 12px',
+            padding: '10px 16px',
             borderRadius: '6px',
-            fontSize: '12px',
+            fontSize: '16px',
             fontWeight: 600,
             cursor: 'pointer',
-            minHeight: '44px',
-            minWidth: '72px',
+            minHeight: '52px',
+            minWidth: '96px',
           }}
         >
-          <ZoomIn size={14} />
+          <ZoomIn size={22} />
           拡大
         </button>
 
@@ -131,20 +133,20 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 backgroundColor: isRested ? '#ca8a04' : '#334155',
                 color: '#f8fafc',
                 border: 'none',
-                padding: '7px 12px',
+                padding: '10px 16px',
                 borderRadius: '6px',
-                fontSize: '12px',
+                fontSize: '16px',
                 cursor: 'pointer',
-                minHeight: '44px',
-                minWidth: '118px',
+                minHeight: '52px',
+                minWidth: '142px',
               }}
             >
-              <RotateCw size={14} />
-              回転（疲労）
+              <RotateCw size={22} />
+              回転
             </button>
 
             <button
@@ -154,21 +156,35 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 backgroundColor: '#334155',
                 color: '#f8fafc',
                 border: 'none',
-                padding: '7px 12px',
+                padding: '10px 16px',
                 borderRadius: '6px',
-                fontSize: '12px',
+                fontSize: '16px',
                 cursor: 'pointer',
-                minHeight: '44px',
-                minWidth: '100px',
+                minHeight: '52px',
+                minWidth: '128px',
               }}
             >
-              <Eye size={14} />
-              {isFaceDown ? '表にする' : '伏せる (裏面)'}
+              <Eye size={22} />
+              {isFaceDown ? '表にする' : '伏せる'}
             </button>
+
+            {hasBackSide && (
+              <button
+                onClick={() => toggleCardSide(card.instanceId)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#0f766e', color: '#f8fafc',
+                  border: 'none', padding: '10px 16px', borderRadius: '6px', fontSize: '16px', cursor: 'pointer',
+                  minHeight: '52px', minWidth: '154px',
+                }}
+              >
+                <FlipHorizontal size={22} />
+                {card.currentSide === 'BACK' ? '表面にする' : '裏面にする'}
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -178,19 +194,19 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 backgroundColor: '#7c3aed',
                 color: '#fff',
                 border: 'none',
-                padding: '7px 12px',
+                padding: '10px 16px',
                 borderRadius: '6px',
-                fontSize: '12px',
+                fontSize: '16px',
                 cursor: 'pointer',
-                minHeight: '44px',
-                minWidth: '108px',
+                minHeight: '52px',
+                minWidth: '140px',
               }}
             >
-              <ArrowUp size={14} />
+              <ArrowUp size={22} />
               デッキ上へ
             </button>
 
@@ -202,19 +218,19 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 backgroundColor: '#6d28d9',
                 color: '#fff',
                 border: 'none',
-                padding: '7px 12px',
+                padding: '10px 16px',
                 borderRadius: '6px',
-                fontSize: '12px',
+                fontSize: '16px',
                 cursor: 'pointer',
-                minHeight: '44px',
-                minWidth: '108px',
+                minHeight: '52px',
+                minWidth: '140px',
               }}
             >
-              <ArrowDown size={14} />
+              <ArrowDown size={22} />
               デッキ下へ
             </button>
           </>
@@ -228,14 +244,14 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
           border: 'none',
           color: '#94a3b8',
           cursor: 'pointer',
-          padding: '4px',
+          padding: '8px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
         title="閉じる"
       >
-        <X size={18} />
+        <X size={26} />
       </button>
     </div>
   );

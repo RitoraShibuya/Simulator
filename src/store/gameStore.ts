@@ -18,25 +18,25 @@ import {
   DeckItem,
   BoardViewMode,
 } from '../types';
+import { BOARD_HEIGHT, BOARD_WIDTH, CARD_HEIGHT, CARD_WIDTH, CORE_SIZE, SOUL_CORE_SIZE } from '../board';
 
-// 単一1000x1000メインキャンバスのゾーン定義 (画面全域フルレイアウト)
+// 1414x1000 メインキャンバスのゾーン定義
 export const VIRTUAL_ZONES: ZoneBounds[] = [
-  // 左サイドバー (x: 20, width: 140)
-  { zone: 'BURST', x: 20, y: 30, width: 140, height: 260, name: 'バースト' },
-  { zone: 'LIFE', x: 20, y: 310, width: 140, height: 320, name: 'ライフ' },
-  { zone: 'RESERVE', x: 20, y: 650, width: 140, height: 320, name: 'リザーブ' },
+  { zone: 'BURST', x: 20, y: 30, width: 180, height: 260, name: 'バースト' },
+  { zone: 'LIFE', x: 20, y: 310, width: 180, height: 320, name: 'ライフ' },
+  { zone: 'RESERVE', x: 20, y: 650, width: 180, height: 320, name: 'リザーブ' },
 
-  // 右サイドバー (x: 840, width: 140)
-  { zone: 'DECK', x: 840, y: 170, width: 140, height: 260, name: 'デッキ' },
-  { zone: 'TRASH', x: 840, y: 450, width: 140, height: 260, name: 'トラッシュ' },
-  { zone: 'TRASH_CORE', x: 840, y: 730, width: 140, height: 240, name: 'コアトラッシュ' },
+  // 右サイドバー
+  { zone: 'DECK', x: 1190, y: 170, width: 204, height: 260, name: 'デッキ' },
+  { zone: 'TRASH', x: 1190, y: 450, width: 204, height: 260, name: 'トラッシュ' },
+  { zone: 'TRASH_CORE', x: 1190, y: 730, width: 204, height: 240, name: 'コアトラッシュ' },
 
   // 下部ドロワー領域 (手元 & 手札)
-  { zone: 'TEMOTO', x: 180, y: 800, width: 220, height: 170, name: '手元 (公開)' },
-  { zone: 'HAND', x: 400, y: 800, width: 420, height: 170, name: '手札 (非公開)' },
+  { zone: 'TEMOTO', x: 220, y: 800, width: 320, height: 200, name: '手元 (公開)' },
+  { zone: 'HAND', x: 540, y: 800, width: 630, height: 200, name: '手札 (非公開)' },
 
   // 中央メインフィールド (広大キャンバス)
-  { zone: 'FIELD', x: 180, y: 30, width: 640, height: 750, name: 'フィールド' },
+  { zone: 'FIELD', x: 220, y: 30, width: 950, height: 750, name: 'フィールド' },
 ];
 
 const SHARED_CARD_ZONES = new Set<ZoneType>(['FIELD', 'TEMOTO', 'TRASH', 'BURST']);
@@ -50,6 +50,8 @@ const toSharedCard = (card: CardInstance) => ({
   backDataUrl: card.backDataUrl,
   physicalState: card.physicalState,
   visibility: card.visibility,
+  isFaceDown: card.isFaceDown,
+  currentSide: card.currentSide,
 });
 
 const toSyncedCard = (card: CardInstance): CardInstance =>
@@ -62,6 +64,8 @@ const toSyncedCard = (card: CardInstance): CardInstance =>
         backDataUrl: null,
         visibility: 'PRIVATE_OWNER',
         physicalState: 'FACE_DOWN',
+        isFaceDown: true,
+        currentSide: 'FRONT',
       }
     : card;
 
@@ -114,6 +118,7 @@ interface GameState {
   moveCard: (instanceId: string, position: VirtualPosition) => void;
   moveCore: (coreId: string, position: VirtualPosition) => void;
   flipCard: (instanceId: string) => void;
+  toggleCardSide: (instanceId: string) => void;
   rotateCard: (instanceId: string) => void;
 
   // ゲーム進行
@@ -196,7 +201,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         isSoulCore: false,
         zone: 'LIFE',
         position: {
-          x: 45 + (i % 2) * 45,
+          x: 55 + (i % 2) * 70,
           y: 360 + Math.floor(i / 2) * 55,
           zIndex: 100 + i,
         },
@@ -210,7 +215,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       ownerId: pid,
       isSoulCore: true,
       zone: 'RESERVE',
-      position: { x: 45, y: 700, zIndex: 110 },
+      position: { x: 55, y: 700, zIndex: 110 },
     };
 
     // リザーブの通常コア 3個 (青)
@@ -222,7 +227,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         isSoulCore: false,
         zone: 'RESERVE',
         position: {
-          x: 45 + ((i + 1) % 2) * 45,
+          x: 55 + ((i + 1) % 2) * 70,
           y: 700 + Math.floor((i + 1) / 2) * 55,
           zIndex: 100 + i,
         },
@@ -250,9 +255,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         backDataUrl: c.backDataUrl,
         ownerId: pid,
         zone: 'DECK',
-        position: { x: 855, y: 185, zIndex: 10 },
+        position: { x: 1228, y: 205, zIndex: 10 },
         visibility: 'HIDDEN_ALL',
         physicalState: 'FACE_DOWN',
+        isFaceDown: true,
+        currentSide: 'FRONT',
         attachedCores: 0,
         attachedSoulCore: false,
       };
@@ -264,9 +271,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       name: 'デッキ',
       ownerId: pid,
       zone: 'DECK',
-      position: { x: 855, y: 185, zIndex: 10 },
+      position: { x: 1228, y: 205, zIndex: 10 },
       visibility: 'HIDDEN_ALL',
       physicalState: 'FACE_DOWN',
+      isFaceDown: true,
+      currentSide: 'FRONT',
       attachedCores: 0,
       attachedSoulCore: false,
       isDeckPlaceholder: true,
@@ -353,8 +362,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const safePos: VirtualPosition = {
-      x: Math.max(0, Math.min(936, Math.round(position?.x ?? 500))),
-      y: Math.max(0, Math.min(910, Math.round(position?.y ?? 500))),
+      x: Math.max(0, Math.min(BOARD_WIDTH - CARD_WIDTH, Math.round(position?.x ?? 500))),
+      y: Math.max(0, Math.min(BOARD_HEIGHT - CARD_HEIGHT, Math.round(position?.y ?? 500))),
       zIndex: Math.max(10, Math.min(50, (position?.zIndex ?? 10))),
     };
 
@@ -368,15 +377,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let nextVisibility = targetCard.visibility;
     let nextPhysicalState = targetCard.physicalState;
+    let nextIsFaceDown = targetCard.isFaceDown;
 
     if (detectedZone === 'FIELD' || detectedZone === 'TRASH' || detectedZone === 'TEMOTO') {
       nextVisibility = 'PUBLIC';
-      if (nextPhysicalState === 'FACE_DOWN') {
-        nextPhysicalState = 'FACE_UP';
-      }
+      // Moving into a public zone reveals the sleeve only; a double-faced card keeps its chosen side.
     } else if (detectedZone === 'BURST') {
       nextVisibility = 'PRIVATE_OWNER';
       nextPhysicalState = 'FACE_DOWN';
+      nextIsFaceDown = true;
     } else if (detectedZone === 'HAND') {
       nextVisibility = 'PRIVATE_OWNER';
     }
@@ -387,6 +396,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       zone: detectedZone,
       visibility: nextVisibility,
       physicalState: nextPhysicalState,
+      isFaceDown: nextIsFaceDown,
     };
 
     set((state) => ({
@@ -421,8 +431,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const safePos: VirtualPosition = {
-      x: Math.max(0, Math.min(980, Math.round(position?.x ?? 500))),
-      y: Math.max(0, Math.min(980, Math.round(position?.y ?? 500))),
+      x: Math.max(0, Math.min(BOARD_WIDTH - CORE_SIZE, Math.round(position?.x ?? 500))),
+      y: Math.max(0, Math.min(BOARD_HEIGHT - CORE_SIZE, Math.round(position?.y ?? 500))),
       zIndex: Math.max(100, Math.min(200, (position?.zIndex ?? 100))),
     };
 
@@ -457,16 +467,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { cores } = get();
     const cardLeft = card.position.x;
     const cardTop = card.position.y;
-    const cardRight = cardLeft + 64;
-    const cardBottom = cardTop + 90;
+    const cardRight = cardLeft + CARD_WIDTH;
+    const cardBottom = cardTop + CARD_HEIGHT;
 
     let count = 0;
     let hasSoulCore = false;
 
     Object.values(cores).forEach((core) => {
       if (core.ownerId !== card.ownerId) return;
-      const coreCenterX = core.position.x + 10;
-      const coreCenterY = core.position.y + 10;
+      const coreSize = core.isSoulCore ? SOUL_CORE_SIZE : CORE_SIZE;
+      const coreCenterX = core.position.x + coreSize / 2;
+      const coreCenterY = core.position.y + coreSize / 2;
 
       // コアの中心点がカードの矩形内に重なっているか判定
       if (
@@ -490,8 +501,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const targetCard = cards[instanceId];
     if (!targetCard || targetCard.ownerId !== localPlayerId || targetCard.isDeckPlaceholder) return;
 
-    const nextPhysicalState = targetCard.physicalState === 'FACE_UP' ? 'FACE_DOWN' : 'FACE_UP';
-    const nextVisibility = nextPhysicalState === 'FACE_DOWN' ? 'PRIVATE_OWNER' : 'PUBLIC';
+    const nextIsFaceDown = !targetCard.isFaceDown;
+    // physicalState is kept as a compatibility field; isFaceDown is the display authority.
+    const nextPhysicalState = nextIsFaceDown ? 'FACE_DOWN' : 'FACE_UP';
+    const nextVisibility = nextIsFaceDown ? 'PRIVATE_OWNER' : 'PUBLIC';
 
     set((state) => ({
       cards: {
@@ -500,6 +513,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           ...state.cards[instanceId],
           physicalState: nextPhysicalState,
           visibility: nextVisibility,
+          isFaceDown: nextIsFaceDown,
         },
       },
       selectedCardForAction: state.selectedCardForAction?.instanceId === instanceId
@@ -507,6 +521,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             ...state.selectedCardForAction,
             physicalState: nextPhysicalState,
             visibility: nextVisibility,
+            isFaceDown: nextIsFaceDown,
           }
         : state.selectedCardForAction,
     }));
@@ -517,8 +532,28 @@ export const useGameStore = create<GameState>((set, get) => ({
       instanceId,
       physicalState: nextPhysicalState,
       visibility: nextVisibility,
+      isFaceDown: nextIsFaceDown,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
+  },
+
+  toggleCardSide: (instanceId) => {
+    const { cards, localPlayerId } = get();
+    const targetCard = cards[instanceId];
+    if (!targetCard || targetCard.ownerId !== localPlayerId || targetCard.isDeckPlaceholder || !targetCard.backDataUrl) return;
+
+    const currentSide = targetCard.currentSide === 'BACK' ? 'BACK' : 'FRONT';
+    const nextSide = currentSide === 'FRONT' ? 'BACK' : 'FRONT';
+    set((state) => ({
+      cards: {
+        ...state.cards,
+        [instanceId]: { ...state.cards[instanceId], currentSide: nextSide },
+      },
+      selectedCardForAction: state.selectedCardForAction?.instanceId === instanceId
+        ? { ...state.selectedCardForAction, currentSide: nextSide }
+        : state.selectedCardForAction,
+    }));
     get().syncBoardState();
   },
 
@@ -571,8 +606,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const targetZone: ZoneType = dest === 'FIELD' ? 'FIELD' : 'HAND';
     const targetPos: VirtualPosition =
       dest === 'FIELD'
-        ? { x: 450, y: 350, zIndex: 10 }
-        : { x: 530 + Math.random() * 150, y: 830, zIndex: 10 };
+        ? { x: 620, y: 350, zIndex: 10 }
+        : { x: 600 + Math.random() * 440, y: 810, zIndex: 10 };
 
     const physicalState = 'FACE_UP';
     const visibility = dest === 'FIELD' ? 'PUBLIC' : 'PRIVATE_OWNER';
@@ -583,6 +618,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       position: targetPos,
       physicalState,
       visibility,
+      isFaceDown: false,
+      currentSide: cardToDraw.currentSide ?? 'FRONT',
     };
 
     set((state) => ({
@@ -632,9 +669,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const returnedCard: CardInstance = {
       ...card,
       zone: 'DECK',
-      position: { x: 855, y: 185, zIndex: 10 },
+      position: { x: 1228, y: 205, zIndex: 10 },
       physicalState: 'FACE_DOWN',
       visibility: 'HIDDEN_ALL',
+      isFaceDown: true,
     };
     const currentDeck = deckQueues[localPlayerId] ?? [];
     const nextDeck = position === 'TOP' ? [...currentDeck, returnedCard] : [returnedCard, ...currentDeck];
@@ -678,6 +716,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       position: { ...position, zIndex: 10 },
       visibility: 'PUBLIC',
       physicalState: 'FACE_UP',
+      isFaceDown: false,
+      currentSide: 'FRONT',
       attachedCores: 0,
       attachedSoulCore: false,
     };
@@ -715,11 +755,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (core.ownerId === localPlayerId) {
         const inTrash =
           core.zone === 'TRASH_CORE' ||
-          (core.position.x >= 840 && core.position.y >= 730);
+          (core.position.x >= 1190 && core.position.y >= 730);
 
         if (inTrash) {
           const newPos: VirtualPosition = {
-            x: 45 + (resIdx % 2) * 45,
+            x: 55 + (resIdx % 2) * 70,
             y: 700 + Math.floor(resIdx / 2) * 50,
             zIndex: 100 + resIdx,
           };
@@ -745,10 +785,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     // 2. 自陣の疲労カードを全回復
     const updatedCards = { ...cards };
     Object.values(cards).forEach((card) => {
-      if (card.ownerId === localPlayerId && card.physicalState === 'RESTED_90') {
+      if (card.ownerId === localPlayerId && (card.rotationAngle ?? 0) !== 0) {
         updatedCards[card.instanceId] = {
           ...card,
           physicalState: 'FACE_UP',
+          rotationAngle: 0,
         };
         p2pSendCallback?.({
           type: 'ROTATE_CARD',
@@ -798,7 +839,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       isSoulCore: false,
       zone: 'RESERVE',
       position: {
-        x: 45 + Math.random() * 40,
+        x: 55 + Math.random() * 70,
         y: 720 + Math.random() * 50,
         zIndex: 150,
       },
@@ -853,7 +894,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       isSoulCore: false,
       zone: 'LIFE',
       position: {
-        x: 45 + (lifeCount % 2) * 45,
+        x: 55 + (lifeCount % 2) * 70,
         y: 360 + Math.floor(lifeCount / 2) * 55,
         zIndex: 120 + lifeCount,
       },
@@ -943,6 +984,8 @@ export const useGameStore = create<GameState>((set, get) => ({
             position: msg.position,
             visibility: sharedCard?.visibility ?? 'PRIVATE_OWNER',
             physicalState: sharedCard?.physicalState ?? 'FACE_DOWN',
+            isFaceDown: sharedCard?.isFaceDown ?? true,
+            currentSide: sharedCard?.currentSide ?? 'FRONT',
             attachedCores: existing?.attachedCores ?? 0,
             attachedSoulCore: existing?.attachedSoulCore ?? false,
             attachedBraveIds: existing?.attachedBraveIds,
@@ -1016,6 +1059,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                 ...card,
                 physicalState: msg.physicalState,
                 visibility: msg.visibility,
+                isFaceDown: msg.isFaceDown,
               },
             },
           };

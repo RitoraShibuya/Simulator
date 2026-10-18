@@ -22,9 +22,9 @@ export type ZoneType =
   | 'TEMOTO'
   | 'TRASH_CORE';
 
-// 1000x1000 仮想座標系における位置情報
+// 1414x1000 仮想座標系における位置情報
 export interface VirtualPosition {
-  x: number; // 0 ~ 1000
+  x: number; // 0 ~ 1414
   y: number; // 0 ~ 1000
   zIndex: number;
 }
@@ -32,7 +32,7 @@ export interface VirtualPosition {
 // ゾーンの AABB (Axis-Aligned Bounding Box) 判定用矩形
 export interface ZoneBounds {
   zone: ZoneType;
-  x: number;      // 0 ~ 1000
+  x: number;      // 0 ~ 1414
   y: number;      // 0 ~ 1000
   width: number;  // 0 ~ 1000
   height: number; // 0 ~ 1000
@@ -78,6 +78,10 @@ export interface CardInstance {
   position: VirtualPosition;
   visibility: CardVisibility;
   physicalState: CardPhysicalState;
+  /** Non-public sleeve state. This is independent from a double-faced card's shown side. */
+  isFaceDown: boolean;
+  /** Publicly displayed side of a double-faced card. */
+  currentSide: 'FRONT' | 'BACK';
   attachedCores: number;      // 乗っている通常コア数
   attachedSoulCore: boolean;  // ソウルコアが乗っているか
   attachedBraveIds?: string[]; // 合体しているブレイヴの instanceId
@@ -141,7 +145,7 @@ export interface SyncMasterStateCommand extends BaseCommand {
 // 公開ゾーンへ移動した時だけ相手へ渡すカード情報。手札・デッキでは送信しない。
 export type SharedCardData = Pick<
   CardInstance,
-  'cardId' | 'name' | 'dataUrl' | 'backDataUrl' | 'physicalState' | 'visibility'
+  'cardId' | 'name' | 'dataUrl' | 'backDataUrl' | 'physicalState' | 'visibility' | 'isFaceDown' | 'currentSide'
 >;
 
 export interface MoveCardCommand extends BaseCommand {
@@ -157,6 +161,7 @@ export interface FlipCardCommand extends BaseCommand {
   instanceId: string;
   physicalState: CardPhysicalState;
   visibility: CardVisibility;
+  isFaceDown: boolean;
 }
 
 export interface RotateCardCommand extends BaseCommand {

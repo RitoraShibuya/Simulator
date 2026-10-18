@@ -13,6 +13,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CardInstance } from '../types';
 import { useGameStore } from '../store/gameStore';
+import { BOARD_HEIGHT, BOARD_WIDTH, CARD_HEIGHT, CARD_WIDTH, COMMON_CARD_BACK } from '../board';
 
 interface CardObjectProps {
   card: CardInstance;
@@ -55,19 +56,20 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
 
   // 視点に応じた座標計算:
   // 自分のカード: (posX, posY)
-  // 相手のカード: (1000 - posX - 64, 1000 - posY - 90)
-  const displayX = isMine ? posX : Math.max(0, Math.min(936, 1000 - posX - 64));
-  const displayY = isMine ? posY : Math.max(0, Math.min(910, 1000 - posY - 90));
+  // 相手のカード: (1414 - posX - cardWidth, 1000 - posY - cardHeight)
+  const displayX = isMine ? posX : Math.max(0, Math.min(BOARD_WIDTH - CARD_WIDTH, BOARD_WIDTH - posX - CARD_WIDTH));
+  const displayY = isMine ? posY : Math.max(0, Math.min(BOARD_HEIGHT - CARD_HEIGHT, BOARD_HEIGHT - posY - CARD_HEIGHT));
 
   // 表裏・可視性判定
-  const isReversed =
+  const isFaceDown =
     // 相手の手札は、以前に公開ゾーンで共有されていたカードでも必ず裏向きにする。
     (card.zone === 'HAND' && !isMine) ||
-    card.physicalState === 'FACE_DOWN' ||
+    card.isFaceDown ||
     card.visibility === 'HIDDEN_ALL' ||
     (card.visibility === 'PRIVATE_OWNER' && !isMine);
 
   const canonicalRotation = card.rotationAngle ?? (card.physicalState === 'RESTED_90' ? 90 : 0);
+  const imageUrl = !isFaceDown && card.currentSide === 'BACK' ? card.backDataUrl : card.dataUrl;
 
   // 向き:
   // 自陣: 0deg (疲労時 90deg)
@@ -104,8 +106,8 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
         position: 'absolute',
         left: `${displayX}px`,
         top: `${displayY}px`,
-        width: '64px',
-        height: '90px',
+        width: `${CARD_WIDTH}px`,
+        height: `${CARD_HEIGHT}px`,
         // isDragging中は元要素を非表示にしてDragOverlayのゴーストのみ表示（残像防止）
         opacity: isDragging ? 0 : 1,
         // 描画順: カードは 10〜50（コアは 100〜200 なので常にコアが上面に乗る）
@@ -116,14 +118,14 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
           ? '0 0 0 2px #38bdf8, 0 8px 20px rgba(56, 189, 248, 0.4)'
           : '0 4px 10px rgba(0, 0, 0, 0.5)',
         border: isMine ? '1.5px solid #3498db' : '1.5px solid #e74c3c',
-        backgroundColor: isReversed ? '#111' : '#1e293b',
-        backgroundImage: !isReversed && card.dataUrl ? `url(${card.dataUrl})` : undefined,
+        backgroundColor: isFaceDown ? '#111' : '#1e293b',
+        backgroundImage: !isFaceDown && imageUrl ? `url(${imageUrl})` : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: isReversed ? 'center' : 'flex-end',
+        justifyContent: isFaceDown ? 'center' : 'flex-end',
         alignItems: 'center',
         padding: '3px',
         boxSizing: 'border-box',
@@ -138,40 +140,35 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
       }}
     >
       {/* 裏面表示 */}
-      {isReversed && (
+      {isFaceDown && (
         <div
           style={{
             width: '100%',
             height: '100%',
             borderRadius: '4px',
-            backgroundColor: '#0f172a',
-            backgroundImage: card.backDataUrl ? `url(${card.backDataUrl})` : undefined,
+            background: COMMON_CARD_BACK,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#64748b',
-            fontSize: '9px',
+            fontSize: '16px',
             fontWeight: 'bold',
             textAlign: 'center',
             border: '1px solid #334155',
           }}
         >
-          {!card.backDataUrl && (
-            <div style={{ opacity: 0.6 }}>
-              {card.zone === 'BURST' ? 'BURST' : 'BS CARD'}
-            </div>
-          )}
+          <div style={{ opacity: 0.7 }}>{card.zone === 'BURST' ? 'BURST' : 'BS CARD'}</div>
         </div>
       )}
 
       {/* 表面で画像がない場合のカード名表示 */}
-      {!isReversed && !card.dataUrl && (
+      {!isFaceDown && !imageUrl && (
         <div
           style={{
             color: '#fff',
-            fontSize: '10px',
+            fontSize: '18px',
             fontWeight: 'bold',
             textAlign: 'center',
             textShadow: '0 1px 3px rgba(0,0,0,0.9)',
@@ -188,14 +185,14 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
         <div
           style={{
             position: 'absolute',
-            top: '-7px',
-            right: '-7px',
+            top: '-12px',
+            right: '-12px',
             display: 'flex',
-            gap: '2px',
+            gap: '4px',
             alignItems: 'center',
             backgroundColor: 'rgba(15, 23, 42, 0.95)',
-            padding: '2px 5px',
-            borderRadius: '10px',
+            padding: '4px 8px',
+            borderRadius: '16px',
             border: hasSoulCore ? '1.5px solid #c084fc' : '1px solid #38bdf8',
             boxShadow: '0 2px 6px rgba(0,0,0,0.7)',
             pointerEvents: 'none',
@@ -204,18 +201,18 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
           {hasSoulCore && (
             <div
               style={{
-                width: '8px',
-                height: '8px',
+                width: '16px',
+                height: '16px',
                 borderRadius: '50%',
                 backgroundColor: '#c084fc',
-                marginRight: '2px',
+                marginRight: '4px',
               }}
               title="ソウルコア含む"
             />
           )}
           <span
             style={{
-              fontSize: '10px',
+              fontSize: '18px',
               fontWeight: 'bold',
               color: hasSoulCore ? '#e9d5ff' : '#38bdf8',
               lineHeight: 1,
@@ -231,12 +228,12 @@ export const CardObject: React.FC<CardObjectProps> = ({ card, onZoom }) => {
         <div
           style={{
             position: 'absolute',
-            bottom: '2px',
-            left: '2px',
+            bottom: '4px',
+            left: '4px',
             backgroundColor: 'rgba(231, 76, 60, 0.85)',
             color: '#fff',
-            fontSize: '8px',
-            padding: '1px 3px',
+            fontSize: '14px',
+            padding: '2px 6px',
             borderRadius: '2px',
             fontWeight: 'bold',
           }}

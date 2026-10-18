@@ -1,6 +1,6 @@
 /**
  * BS Simulator - InGameScene Component (v4)
- * Full-screen Single 1000x1000 Canvas with View Switcher.
+ * Full-screen 1414x1000 Canvas with View Switcher.
  * Fixes:
  * - Drag: uses delta + initial card position for accurate drop placement
  * - DragOverlay for visual drag ghost
@@ -28,6 +28,7 @@ import { CoreObject } from './CoreObject';
 import { ActionPanel } from './ActionPanel';
 import { ZoomModal } from './ZoomModal';
 import { CardInstance, CoreInstance, DeckItem, VirtualPosition, ZoneType } from '../types';
+import { BOARD_HEIGHT, BOARD_WIDTH, CARD_HEIGHT, CARD_WIDTH, COMMON_CARD_BACK } from '../board';
 import {
   Menu,
   Sparkles,
@@ -276,7 +277,7 @@ const DroppableZone: React.FC<{
         <span
           style={{
             color: 'rgba(148, 163, 184, 0.55)',
-            fontSize: '12px',
+            fontSize: '18px',
             fontWeight: 'bold',
             letterSpacing: '0.5px',
           }}
@@ -287,7 +288,7 @@ const DroppableZone: React.FC<{
           <span
             style={{
               color: '#38bdf8',
-              fontSize: '13px',
+              fontSize: '26px',
               fontWeight: 'bold',
             }}
           >
@@ -300,7 +301,7 @@ const DroppableZone: React.FC<{
   );
 };
 
-// 1000x1000 仮想空間内の盤面メインコンポーネント
+// 1414x1000 仮想空間内の盤面メインコンポーネント
 const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
   const { scale } = useViewport();
   const cards = useGameStore((s) => s.cards || {});
@@ -383,16 +384,16 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
     if (active.data.current?.type === 'CARD') {
       const card = active.data.current.card as CardInstance;
       const targetPos: VirtualPosition = {
-        x: Math.max(10, Math.min(926, Math.round(startPos.x + virtualDeltaX))),
-        y: Math.max(10, Math.min(900, Math.round(startPos.y + virtualDeltaY))),
+        x: Math.max(0, Math.min(BOARD_WIDTH - CARD_WIDTH, Math.round(startPos.x + virtualDeltaX))),
+        y: Math.max(0, Math.min(BOARD_HEIGHT - CARD_HEIGHT, Math.round(startPos.y + virtualDeltaY))),
         zIndex: startPos.zIndex ?? 10,
       };
       moveCard(card.instanceId, targetPos);
     } else if (active.data.current?.type === 'CORE') {
       const core = active.data.current.core as CoreInstance;
       const targetPos: VirtualPosition = {
-        x: Math.max(5, Math.min(975, Math.round(startPos.x + virtualDeltaX))),
-        y: Math.max(5, Math.min(975, Math.round(startPos.y + virtualDeltaY))),
+        x: Math.max(0, Math.min(BOARD_WIDTH - 36, Math.round(startPos.x + virtualDeltaX))),
+        y: Math.max(0, Math.min(BOARD_HEIGHT - 36, Math.round(startPos.y + virtualDeltaY))),
         zIndex: startPos.zIndex ?? 100,
       };
       moveCore(core.id, targetPos);
@@ -421,7 +422,7 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
   const boardPosition = (x: number, y: number, width: number, height: number) =>
     isShowingMyBoard
       ? { x, y }
-      : { x: 1000 - x - width, y: 1000 - y - height };
+      : { x: BOARD_WIDTH - x - width, y: BOARD_HEIGHT - y - height };
   const currentResource = players[targetPlayerId] ?? {
     playerId: targetPlayerId,
     name: targetPlayerId === localPlayerId ? 'Player' : 'Opponent',
@@ -457,8 +458,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
       <div
         onClick={() => setSelectedCardForAction(null)}
         style={{
-          width: '1000px',
-          height: '1000px',
+          width: `${BOARD_WIDTH}px`,
+          height: `${BOARD_HEIGHT}px`,
           position: 'relative',
           background: 'linear-gradient(135deg, #090d16 0%, #111827 50%, #0b1120 100%)',
           border: '2px solid #1e293b',
@@ -466,14 +467,14 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         }}
       >
         {/* ========================================================= */}
-        {/* 単一 1000x1000 メインキャンバス・ゾーン描画 (全画面フルレイアウト) */}
+        {/* 1414x1000 メインキャンバス・ゾーン描画 */}
         {/* ========================================================= */}
 
         {/* 左サイドバー: バースト */}
         <DroppableZone
           zone="BURST"
-          {...boardPosition(20, 30, 140, 260)}
-          width={140}
+          {...boardPosition(20, 30, 180, 260)}
+          width={180}
           height={260}
           title={isShowingMyBoard ? 'バースト' : '相手バースト'}
         />
@@ -481,8 +482,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         {/* 左サイドバー: ライフ */}
         <DroppableZone
           zone="LIFE"
-          {...boardPosition(20, 310, 140, 320)}
-          width={140}
+          {...boardPosition(20, 310, 180, 320)}
+          width={180}
           height={320}
           title={isShowingMyBoard ? 'ライフ' : '相手ライフ'}
           countBadge={lifeCoreCount}
@@ -491,8 +492,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         {/* 左サイドバー: リザーブ */}
         <DroppableZone
           zone="RESERVE"
-          {...boardPosition(20, 650, 140, 320)}
-          width={140}
+          {...boardPosition(20, 650, 180, 320)}
+          width={180}
           height={320}
           title={isShowingMyBoard ? 'リザーブ' : '相手リザーブ'}
           countBadge={reserveCoreCount}
@@ -501,8 +502,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         {/* 中央: メインフィールド (広大キャンバス) */}
         <DroppableZone
           zone="FIELD"
-          {...boardPosition(180, 30, 640, 750)}
-          width={640}
+          {...boardPosition(220, 30, 950, 750)}
+          width={950}
           height={750}
           title={isShowingMyBoard ? 'YOUR FIELD (自陣フィールド)' : 'OPPONENT FIELD (相手フィールド)'}
         >
@@ -527,9 +528,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         <div
           style={{
             position: 'absolute',
-            left: '840px',
-            top: '30px',
-            width: '140px',
+            ...boardPosition(1190, 30, 204, 120),
+            width: '204px',
             height: '120px',
             backgroundColor: 'rgba(30, 41, 59, 0.6)',
             border: '1px solid #334155',
@@ -591,8 +591,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         {/* 右サイドバー: デッキ */}
         <DroppableZone
           zone="DECK"
-          {...boardPosition(840, 170, 140, 260)}
-          width={140}
+          {...boardPosition(1190, 170, 204, 260)}
+          width={204}
           height={260}
           title={isShowingMyBoard ? 'デッキ' : '相手デッキ'}
           countBadge={deckCount}
@@ -601,17 +601,18 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         {/* 右サイドバー: トラッシュ (カード) */}
         <DroppableZone
           zone="TRASH"
-          {...boardPosition(840, 450, 140, 260)}
-          width={140}
+          {...boardPosition(1190, 450, 204, 260)}
+          width={204}
           height={260}
           title={isShowingMyBoard ? `トラッシュ (${myTrashCount}枚)` : '相手トラッシュ'}
+          countBadge={myTrashCount}
         />
 
         {/* 右サイドバー: コアトラッシュ */}
         <DroppableZone
           zone="TRASH_CORE"
-          {...boardPosition(840, 730, 140, 240)}
-          width={140}
+          {...boardPosition(1190, 730, 204, 240)}
+          width={204}
           height={240}
           title={isShowingMyBoard ? 'コアトラッシュ' : '相手コアトラッシュ'}
           countBadge={trashCoreCount}
@@ -640,9 +641,9 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
               style={{
                 position: 'absolute',
                 bottom: '0px',
-                left: '180px',
-                width: '640px',
-                height: '180px',
+                left: '220px',
+                width: '950px',
+                height: '200px',
                 backgroundColor: 'rgba(15, 23, 42, 0.98)',
                 borderTop: '2px solid #f59e0b',
                 borderLeft: '1px solid #334155',
@@ -653,11 +654,11 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
                 overflow: 'hidden',
               }}
             >
-              <div style={{ width: '220px', borderRight: '1px dashed #475569', position: 'relative' }}>
-                <DroppableZone zone="TEMOTO" x={0} y={0} width={220} height={180} title="手元 (公開)" />
+              <div style={{ width: '320px', borderRight: '1px dashed #475569', position: 'relative' }}>
+                <DroppableZone zone="TEMOTO" x={0} y={0} width={320} height={200} title="手元 (公開)" />
               </div>
               <div style={{ flex: 1, position: 'relative' }}>
-                <DroppableZone zone="HAND" x={0} y={0} width={420} height={180} title="手札 (自分のみ非公開)" />
+                <DroppableZone zone="HAND" x={0} y={0} width={630} height={200} title="手札 (自分のみ非公開)" />
               </div>
           </div>
         )}
@@ -669,8 +670,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
             position: 'absolute',
             top: '0px',
             left: '0px',
-            width: '160px',
-            height: '1000px',
+            width: '220px',
+            height: `${BOARD_HEIGHT}px`,
             backgroundColor: 'rgba(15, 23, 42, 0.98)',
             borderRight: '2px solid #8b5cf6',
             transform: isExDrawerOpen ? 'translateX(0)' : 'translateX(-100%)',
@@ -757,8 +758,8 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
               position: 'absolute',
               top: '0px',
               left: '0px',
-              width: '240px',
-              height: '1000px',
+            width: '280px',
+            height: `${BOARD_HEIGHT}px`,
               backgroundColor: 'rgba(15, 23, 42, 0.98)',
               borderRight: '1px solid #334155',
               zIndex: 150,
@@ -997,23 +998,24 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
         <DragOverlay dropAnimation={null}>
         {activeItem?.type === 'CARD' && (() => {
           const card = activeItem.data as CardInstance;
-          const isReversed = card.physicalState === 'FACE_DOWN' || card.visibility === 'HIDDEN_ALL';
-          const isRested = card.physicalState === 'RESTED_90';
+          const isReversed = card.isFaceDown || card.visibility === 'HIDDEN_ALL';
+          const imageUrl = !isReversed && card.currentSide === 'BACK' ? card.backDataUrl : card.dataUrl;
+          const rotation = card.rotationAngle ?? 0;
           return (
             <div
               style={{
                 // DragOverlayの基準矩形（実画面上のカード寸法）をそのまま使う。
-                // 1000px盤面のCSS scale下でも、掴んだ局所位置をカーソルに維持できる。
+                // CSS scale下でも、掴んだ局所位置をカーソルに維持できる。
                 width: '100%',
                 height: '100%',
                 boxSizing: 'border-box',
                 borderRadius: '6px',
                 border: '2px solid #38bdf8',
                 backgroundColor: isReversed ? '#111' : '#1e293b',
-                backgroundImage: !isReversed && card.dataUrl ? `url(${card.dataUrl})` : undefined,
+                backgroundImage: isReversed ? COMMON_CARD_BACK : imageUrl ? `url(${imageUrl})` : undefined,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-                transform: `rotate(${isRested ? 90 : 0}deg)`,
+                transform: `rotate(${rotation}deg)`,
                 opacity: 0.88,
                 boxShadow: '0 14px 30px rgba(0,0,0,0.7), 0 0 20px rgba(56,189,248,0.8)',
                 display: 'flex',
@@ -1024,7 +1026,7 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
                 pointerEvents: 'none',
               }}
             >
-              {isReversed && !card.backDataUrl && <span>BS</span>}
+              {isReversed && <span>BS</span>}
             </div>
           );
         })()}

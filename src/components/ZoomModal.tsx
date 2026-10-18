@@ -6,6 +6,7 @@
 import React from 'react';
 import { CardInstance } from '../types';
 import { X } from 'lucide-react';
+import { COMMON_CARD_BACK } from '../board';
 
 interface ZoomModalProps {
   card: CardInstance | null;
@@ -15,8 +16,8 @@ interface ZoomModalProps {
 export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
   if (!card) return null;
 
-  const isReversed =
-    card.physicalState === 'FACE_DOWN' || card.visibility === 'HIDDEN_ALL';
+  const isFaceDown = card.isFaceDown || card.visibility === 'HIDDEN_ALL';
+  const imageUrl = card.currentSide === 'BACK' ? card.backDataUrl : card.dataUrl;
 
   return (
     <div
@@ -68,7 +69,7 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
           <X size={20} />
         </button>
 
-        {isReversed ? (
+        {isFaceDown ? (
           <div
             style={{
               width: 'min(480px, 85vw)',
@@ -82,17 +83,17 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
               color: '#64748b',
               fontSize: '1.5rem',
               fontWeight: 'bold',
-              backgroundImage: card.backDataUrl ? `url(${card.backDataUrl})` : undefined,
+              background: COMMON_CARD_BACK,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               boxShadow: '0 20px 50px rgba(0,0,0,0.9)',
             }}
           >
-            {!card.backDataUrl && '（裏面カード）'}
+            非公開
           </div>
-        ) : card.dataUrl ? (
+        ) : imageUrl ? (
           <img
-            src={card.dataUrl}
+            src={imageUrl}
             alt={card.name}
             style={{
               width: 'min(480px, 85vw)',
@@ -135,7 +136,7 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
         )}
 
         <div style={{ marginTop: '12px', color: '#e2e8f0', fontSize: '1.1rem', fontWeight: 'bold' }}>
-          {isReversed ? '非公開' : card.name}
+          {isFaceDown ? '非公開' : card.name}
         </div>
       </div>
     </div>

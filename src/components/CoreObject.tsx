@@ -1,6 +1,6 @@
 /**
  * BS Simulator - CoreObject Component (v3)
- * Independent Physical Token Core in 1000x1000 Virtual Space.
+ * Independent Physical Token Core in 1414x1000 Virtual Space.
  * Features:
  * - Free movement across board, reserve, life, trash, and on top of cards
  * - Higher Z-Index (100~200) than cards (10~50) so it always renders on top
@@ -12,6 +12,7 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CoreInstance } from '../types';
 import { useGameStore } from '../store/gameStore';
+import { BOARD_HEIGHT, BOARD_WIDTH, CORE_SIZE, SOUL_CORE_SIZE } from '../board';
 
 interface CoreObjectProps {
   core: CoreInstance;
@@ -50,10 +51,10 @@ export const CoreObject: React.FC<CoreObjectProps> = ({ core }) => {
 
   // 視点に応じた表示座標:
   // 自陣: (x, y)
-  // 相手陣: (1000 - x - 20, 1000 - y - 20)
-  const coreSize = isSoul ? 22 : 18;
-  const displayX = isMine ? posX : Math.max(0, Math.min(1000 - coreSize, 1000 - posX - coreSize));
-  const displayY = isMine ? posY : Math.max(0, Math.min(1000 - coreSize, 1000 - posY - coreSize));
+  // 相手陣: (1414 - x - coreSize, 1000 - y - coreSize)
+  const coreSize = isSoul ? SOUL_CORE_SIZE : CORE_SIZE;
+  const displayX = isMine ? posX : Math.max(0, Math.min(BOARD_WIDTH - coreSize, BOARD_WIDTH - posX - coreSize));
+  const displayY = isMine ? posY : Math.max(0, Math.min(BOARD_HEIGHT - coreSize, BOARD_HEIGHT - posY - coreSize));
 
   const dragStyle = transform
     ? {
@@ -70,8 +71,8 @@ export const CoreObject: React.FC<CoreObjectProps> = ({ core }) => {
         position: 'absolute',
         left: `${displayX}px`,
         top: `${displayY}px`,
-        width: isSoul ? '22px' : '18px',
-        height: isSoul ? '22px' : '18px',
+        width: `${coreSize}px`,
+        height: `${coreSize}px`,
         borderRadius: '50%',
         cursor: canDrag ? (isDragging ? 'grabbing' : 'grab') : 'default',
         // 描画順: カード (10~50) より確実に上面 (100~200) に表示

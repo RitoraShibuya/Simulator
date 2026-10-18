@@ -147,7 +147,7 @@ export const TitleScene: React.FC<TitleSceneProps> = ({ onGoDeckBuilder, onGoLob
             color: '#475569',
           }}
         >
-          PeerJS / WebRTC DataChannel | Virtual 1000x1000 Engine
+          PeerJS / WebRTC DataChannel | Virtual 1414x1000 Engine
         </div>
       </div>
     </div>

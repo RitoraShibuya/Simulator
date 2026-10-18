@@ -1,10 +1,11 @@
 /**
- * BS Simulator - Viewport (1000x1000 Virtual Space Fitting)
+ * BS Simulator - Viewport (1414x1000 Virtual Space Fitting)
  * Responsive aspect-ratio preservation with scale fitting.
  * Removed global rotate(180deg) to ensure independent perspective rendering for both 1P and 2P.
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { BOARD_HEIGHT, BOARD_WIDTH } from '../board';
 
 interface ViewportContextType {
   clientToVirtual: (clientX: number, clientY: number) => { x: number; y: number };
@@ -36,7 +37,7 @@ export const Viewport: React.FC<ViewportProps> = ({ children }) => {
       // 盤面の一辺を常に利用可能な幅・高さの小さい方へ合わせる（object-fit: contain相当）。
       const availableWidth = Math.min(window.innerWidth, clientWidth);
       const availableHeight = Math.min(window.innerHeight, clientHeight);
-      const calculatedScale = Math.min(availableWidth / 1000, availableHeight / 1000);
+      const calculatedScale = Math.min(availableWidth / BOARD_WIDTH, availableHeight / BOARD_HEIGHT);
       // isFiniteチェックでNaNとInfinityを確実に遮断
       const safeScale = Number.isFinite(calculatedScale) ? Math.max(0.01, calculatedScale) : 1;
       setScale(safeScale);
@@ -54,12 +55,12 @@ export const Viewport: React.FC<ViewportProps> = ({ children }) => {
   }, []);
 
   const clientToVirtual = (clientX: number, clientY: number): { x: number; y: number } => {
-    if (!boardRef.current) return { x: 500, y: 500 };
+    if (!boardRef.current) return { x: BOARD_WIDTH / 2, y: BOARD_HEIGHT / 2 };
     const rect = boardRef.current.getBoundingClientRect();
-    if (!rect.width || !rect.height) return { x: 500, y: 500 };
+    if (!rect.width || !rect.height) return { x: BOARD_WIDTH / 2, y: BOARD_HEIGHT / 2 };
 
-    const vx = Math.max(0, Math.min(1000, ((clientX - rect.left) / rect.width) * 1000));
-    const vy = Math.max(0, Math.min(1000, ((clientY - rect.top) / rect.height) * 1000));
+    const vx = Math.max(0, Math.min(BOARD_WIDTH, ((clientX - rect.left) / rect.width) * BOARD_WIDTH));
+    const vy = Math.max(0, Math.min(BOARD_HEIGHT, ((clientY - rect.top) / rect.height) * BOARD_HEIGHT));
 
     return {
       x: Math.round(vx),
@@ -90,9 +91,9 @@ export const Viewport: React.FC<ViewportProps> = ({ children }) => {
           ref={boardRef}
           id="virtual-board"
           style={{
-            width: '1000px',
-            height: '1000px',
-            flex: '0 0 1000px',
+            width: `${BOARD_WIDTH}px`,
+            height: `${BOARD_HEIGHT}px`,
+            flex: `0 0 ${BOARD_WIDTH}px`,
             transform: `scale(${scale})`,
             transformOrigin: 'center center',
             transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
