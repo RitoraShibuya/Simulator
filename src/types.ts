@@ -130,6 +130,13 @@ export interface DeckCountCommand extends BaseCommand {
   count: number;
 }
 
+export interface SyncMasterStateCommand extends BaseCommand {
+  type: 'SYNC_MASTER_STATE';
+  cards: Record<string, CardInstance>;
+  cores: Record<string, CoreInstance>;
+  deckCount: number;
+}
+
 // 公開ゾーンへ移動した時だけ相手へ渡すカード情報。手札・デッキでは送信しない。
 export type SharedCardData = Pick<
   CardInstance,
@@ -184,6 +191,7 @@ export interface CountChangeCommand extends BaseCommand {
 export type P2PMessage =
   | HandshakeDeckCommand
   | DeckCountCommand
+  | SyncMasterStateCommand
   | MoveCardCommand
   | FlipCardCommand
   | RotateCardCommand

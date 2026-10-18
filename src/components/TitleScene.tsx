@@ -4,14 +4,15 @@
  */
 
 import React from 'react';
-import { Layers, Swords } from 'lucide-react';
+import { Layers, Play, Swords } from 'lucide-react';
 
 interface TitleSceneProps {
   onGoDeckBuilder: () => void;
   onGoLobby: () => void;
+  onStartSolo: () => void;
 }
 
-export const TitleScene: React.FC<TitleSceneProps> = ({ onGoDeckBuilder, onGoLobby }) => {
+export const TitleScene: React.FC<TitleSceneProps> = ({ onGoDeckBuilder, onGoLobby, onStartSolo }) => {
   return (
     <div
       style={{
@@ -114,6 +115,19 @@ export const TitleScene: React.FC<TitleSceneProps> = ({ onGoDeckBuilder, onGoLob
           >
             <Swords size={20} />
             対戦を始める (ロビー)
+          </button>
+
+          <button
+            onClick={onStartSolo}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '16px',
+              backgroundColor: '#16a34a', color: '#fff', border: 'none', borderRadius: '10px',
+              fontSize: '16px', fontWeight: 'bold', cursor: 'pointer',
+              boxShadow: '0 8px 24px -4px rgba(22, 163, 74, 0.55)',
+            }}
+          >
+            <Play size={20} />
+            １人回し（ソロプレイ）
           </button>
 
           <button

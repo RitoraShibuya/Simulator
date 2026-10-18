@@ -128,6 +128,12 @@ export const App: React.FC = () => {
     setScene('INGAME');
   };
 
+  const handleStartSolo = () => {
+    initStore('1P', () => undefined);
+    setupInGame();
+    setScene('INGAME');
+  };
+
   // 切断・終了
   const handleDisconnect = () => {
     p2pService.disconnect();
@@ -147,6 +153,7 @@ export const App: React.FC = () => {
         <TitleScene
           onGoDeckBuilder={() => setScene('DECK_BUILDER')}
           onGoLobby={() => setScene('LOBBY')}
+          onStartSolo={handleStartSolo}
         />
       )}
 

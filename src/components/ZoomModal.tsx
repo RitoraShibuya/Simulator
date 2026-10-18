@@ -71,8 +71,8 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
         {isReversed ? (
           <div
             style={{
-              width: '320px',
-              height: '448px',
+              width: 'min(480px, 85vw)',
+              height: 'min(672px, 75vh)',
               backgroundColor: '#0f172a',
               borderRadius: '16px',
               border: '3px solid #334155',
@@ -95,6 +95,7 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
             src={card.dataUrl}
             alt={card.name}
             style={{
+              width: 'min(480px, 85vw)',
               maxHeight: '75vh',
               maxWidth: '85vw',
               borderRadius: '14px',
@@ -106,8 +107,8 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ card, onClose }) => {
         ) : (
           <div
             style={{
-              width: '320px',
-              height: '448px',
+              width: 'min(480px, 85vw)',
+              height: 'min(672px, 75vh)',
               background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
               borderRadius: '16px',
               border: '3px solid #38bdf8',

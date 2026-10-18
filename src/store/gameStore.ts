@@ -32,8 +32,8 @@ export const VIRTUAL_ZONES: ZoneBounds[] = [
   { zone: 'TRASH_CORE', x: 840, y: 730, width: 140, height: 240, name: 'コアトラッシュ' },
 
   // 下部ドロワー領域 (手元 & 手札)
-  { zone: 'TEMOTO', x: 180, y: 800, width: 310, height: 170, name: '手元 (公開)' },
-  { zone: 'HAND', x: 510, y: 800, width: 310, height: 170, name: '手札 (非公開)' },
+  { zone: 'TEMOTO', x: 180, y: 800, width: 220, height: 170, name: '手元 (公開)' },
+  { zone: 'HAND', x: 400, y: 800, width: 420, height: 170, name: '手札 (非公開)' },
 
   // 中央メインフィールド (広大キャンバス)
   { zone: 'FIELD', x: 180, y: 30, width: 640, height: 750, name: 'フィールド' },
@@ -51,6 +51,19 @@ const toSharedCard = (card: CardInstance) => ({
   physicalState: card.physicalState,
   visibility: card.visibility,
 });
+
+const toSyncedCard = (card: CardInstance): CardInstance =>
+  card.zone === 'HAND'
+    ? {
+        ...card,
+        cardId: 'opponent_card',
+        name: '非公開',
+        dataUrl: undefined,
+        backDataUrl: null,
+        visibility: 'PRIVATE_OWNER',
+        physicalState: 'FACE_DOWN',
+      }
+    : card;
 
 // Pure Mathematical AABB Hit Testing
 export function detectZoneFromPosition(pos: VirtualPosition): ZoneType {
@@ -112,6 +125,10 @@ interface GameState {
   changeCount: (delta: number) => void;
   addCoreToReserve: () => void;
   removeCoreFromReserve: () => void;
+  addLifeCore: () => void;
+  removeLifeCore: () => void;
+  resetBoard: () => void;
+  syncBoardState: () => void;
 
   // 動的コアカウント計算 (AABB 重複判定)
   getAttachedCoresInfo: (card: CardInstance) => { count: number; hasSoulCore: boolean };
@@ -300,6 +317,27 @@ export const useGameStore = create<GameState>((set, get) => ({
         timestamp: Date.now(),
       });
     });
+    get().syncBoardState();
+  },
+
+  syncBoardState: () => {
+    const { cards, cores, deckQueues, localPlayerId, p2pSendCallback } = get();
+    const ownCards = Object.fromEntries(
+      Object.entries(cards)
+        .filter(([, card]) => card.ownerId === localPlayerId)
+        .map(([id, card]) => [id, toSyncedCard(card)])
+    );
+    const ownCores = Object.fromEntries(
+      Object.entries(cores).filter(([, core]) => core.ownerId === localPlayerId)
+    );
+    p2pSendCallback?.({
+      type: 'SYNC_MASTER_STATE',
+      senderId: localPlayerId,
+      cards: ownCards,
+      cores: ownCores,
+      deckCount: deckQueues[localPlayerId]?.length ?? 0,
+      timestamp: Date.now(),
+    });
   },
 
   /**
@@ -367,6 +405,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       sharedCard: sharesCardDetails(detectedZone) ? toSharedCard(updatedCard) : undefined,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
   },
 
   /**
@@ -408,6 +447,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       targetZone: detectedZone,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
   },
 
   /**
@@ -479,6 +519,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       visibility: nextVisibility,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
   },
 
   rotateCard: (instanceId) => {
@@ -511,6 +552,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       physicalState: nextState,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
   },
 
   drawCard: (dest, fromBottom = false) => {
@@ -565,6 +607,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       count: remainingDeck.length,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
   },
 
   shuffleDeck: () => {
@@ -575,6 +618,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       deckQueues: { ...state.deckQueues, [localPlayerId]: shuffled },
       deckCounts: { ...state.deckCounts, [localPlayerId]: shuffled.length },
     }));
+    get().syncBoardState();
 
   },
 
@@ -614,6 +658,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       count: nextDeck.length,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
   },
 
   spawnExCard: (cardItem, position) => {
@@ -714,6 +759,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
 
     set({ cores: updatedCores, cards: updatedCards });
+    get().syncBoardState();
   },
 
   changeCount: (delta) => {
@@ -768,6 +814,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       core: newCore,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
   },
 
   removeCoreFromReserve: () => {
@@ -789,6 +836,47 @@ export const useGameStore = create<GameState>((set, get) => ({
       coreId: target.id,
       timestamp: Date.now(),
     });
+    get().syncBoardState();
+  },
+
+  addLifeCore: () => {
+    const { localPlayerId, cores, p2pSendCallback } = get();
+    const lifeCount = Object.values(cores).filter(
+      (core) => core.ownerId === localPlayerId && core.zone === 'LIFE'
+    ).length;
+    const core: CoreInstance = {
+      id: `${localPlayerId}_life_extra_${Date.now()}`,
+      ownerId: localPlayerId,
+      isSoulCore: false,
+      zone: 'LIFE',
+      position: {
+        x: 45 + (lifeCount % 2) * 45,
+        y: 360 + Math.floor(lifeCount / 2) * 55,
+        zIndex: 120 + lifeCount,
+      },
+    };
+    set((state) => ({ cores: { ...state.cores, [core.id]: core } }));
+    p2pSendCallback?.({ type: 'ADD_CORE', senderId: localPlayerId, core, timestamp: Date.now() });
+    get().syncBoardState();
+  },
+
+  removeLifeCore: () => {
+    const { localPlayerId, cores, p2pSendCallback } = get();
+    const lifeCores = Object.values(cores)
+      .filter((item) => item.ownerId === localPlayerId && item.zone === 'LIFE' && !item.isSoulCore);
+    const core = lifeCores[lifeCores.length - 1];
+    if (!core) return;
+    set((state) => {
+      const nextCores = { ...state.cores };
+      delete nextCores[core.id];
+      return { cores: nextCores };
+    });
+    p2pSendCallback?.({ type: 'REMOVE_CORE', senderId: localPlayerId, coreId: core.id, timestamp: Date.now() });
+    get().syncBoardState();
+  },
+
+  resetBoard: () => {
+    get().setupInGame();
   },
 
   applyP2PMessage: (msg) => {
@@ -804,6 +892,26 @@ export const useGameStore = create<GameState>((set, get) => ({
         const safeCount = Number.isFinite(msg.count) ? Math.max(0, Math.floor(msg.count)) : 0;
         set((state) => ({
           deckCounts: { ...state.deckCounts, [msg.senderId]: safeCount },
+        }));
+        break;
+      }
+
+      case 'SYNC_MASTER_STATE': {
+        const safeDeckCount = Number.isFinite(msg.deckCount) ? Math.max(0, Math.floor(msg.deckCount)) : 0;
+        set((state) => ({
+          cards: {
+            ...Object.fromEntries(
+              Object.entries(state.cards).filter(([, card]) => card.ownerId === localPlayerId)
+            ),
+            ...msg.cards,
+          },
+          cores: {
+            ...Object.fromEntries(
+              Object.entries(state.cores).filter(([, core]) => core.ownerId === localPlayerId)
+            ),
+            ...msg.cores,
+          },
+          deckCounts: { ...state.deckCounts, [msg.senderId]: safeDeckCount },
         }));
         break;
       }

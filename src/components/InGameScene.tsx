@@ -326,6 +326,9 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
   const drawCard = useGameStore((s) => s.drawCard);
   const addCoreToReserve = useGameStore((s) => s.addCoreToReserve);
   const removeCoreFromReserve = useGameStore((s) => s.removeCoreFromReserve);
+  const addLifeCore = useGameStore((s) => s.addLifeCore);
+  const removeLifeCore = useGameStore((s) => s.removeLifeCore);
+  const resetBoard = useGameStore((s) => s.resetBoard);
   const spawnExCard = useGameStore((s) => s.spawnExCard);
 
   const selectedCardForAction = useGameStore((s) => s.selectedCardForAction);
@@ -932,6 +935,32 @@ const BoardContent: React.FC<{ onQuit: () => void }> = ({ onQuit }) => {
               }}
             >
               リザーブコア1つ消去
+            </button>
+
+            <div style={{ height: '1px', backgroundColor: '#334155', margin: '6px 0' }} />
+
+            <button
+              onClick={addLifeCore}
+              style={{ backgroundColor: '#0369a1', color: '#fff', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+            >
+              ライフ +1
+            </button>
+
+            <button
+              onClick={removeLifeCore}
+              style={{ backgroundColor: '#991b1b', color: '#fff', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+            >
+              ライフ -1
+            </button>
+
+            <button
+              onClick={() => {
+                resetBoard();
+                setToolMenuOpen(false);
+              }}
+              style={{ backgroundColor: '#b45309', color: '#fff', padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+            >
+              盤面リセット
             </button>
 
             <button

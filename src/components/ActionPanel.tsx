@@ -114,6 +114,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
             fontSize: '12px',
             fontWeight: 600,
             cursor: 'pointer',
+            minHeight: '44px',
+            minWidth: '72px',
           }}
         >
           <ZoomIn size={14} />
@@ -137,10 +139,12 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
                 borderRadius: '6px',
                 fontSize: '12px',
                 cursor: 'pointer',
+                minHeight: '44px',
+                minWidth: '118px',
               }}
             >
               <RotateCw size={14} />
-              {isRested ? '回復 (0度)' : '疲労 (90度)'}
+              回転（疲労）
             </button>
 
             <button
@@ -158,6 +162,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
                 borderRadius: '6px',
                 fontSize: '12px',
                 cursor: 'pointer',
+                minHeight: '44px',
+                minWidth: '100px',
               }}
             >
               <Eye size={14} />
@@ -180,6 +186,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
                 borderRadius: '6px',
                 fontSize: '12px',
                 cursor: 'pointer',
+                minHeight: '44px',
+                minWidth: '108px',
               }}
             >
               <ArrowUp size={14} />
@@ -202,6 +210,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ card, onClose, onZoom 
                 borderRadius: '6px',
                 fontSize: '12px',
                 cursor: 'pointer',
+                minHeight: '44px',
+                minWidth: '108px',
               }}
             >
               <ArrowDown size={14} />
